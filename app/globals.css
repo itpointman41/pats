@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary: #ffffff;
+  --color-secondary: #0d8c40;
+  --color-secondary-dark: #0a6a32;
+  --color-text: #162616;
+  --color-text-muted: #5f6d61;
+  --surface-muted: #f4f7f4;
+  --surface-accent: #e9f3eb;
+  --color-border: #dfe7df;
+  --shadow-soft: 0 20px 45px rgba(9, 59, 26, 0.08);
+  --shadow-card: 0 12px 24px rgba(17, 42, 27, 0.06);
+}
+
+@theme inline {
+  --color-background: var(--surface-muted);
+  --color-foreground: var(--color-text);
+  --font-sans: var(--font-roboto);
+  --font-mono: var(--font-roboto-mono);
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--surface-muted), #fdfdfc);
+  color: var(--color-text);
+  font-family: var(--font-roboto), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, rgba(13, 140, 64, 0.08), transparent 55%) var(--surface-muted);
+}
+
+.card {
+  background: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(12px);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: var(--color-secondary);
+  color: var(--color-primary);
+  box-shadow: 0 10px 20px rgba(13, 140, 64, 0.25);
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.btn-primary:hover {
+  background: var(--color-secondary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 25px rgba(13, 140, 64, 0.3);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.25rem;
+  border-radius: 999px;
+  font-weight: 600;
+  border: 1px solid var(--color-secondary);
+  color: var(--color-secondary);
+  background: var(--color-primary);
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(13, 140, 64, 0.08);
+  transform: translateY(-1px);
+}
+
+.input-soft {
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-primary);
+  padding: 0.65rem 1.25rem;
+  transition: border 150ms ease, box-shadow 150ms ease;
+}
+
+.input-soft:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px rgba(13, 140, 64, 0.15);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(13, 140, 64, 0.12);
+  color: var(--color-secondary);
+}
+
+table thead {
+  background: var(--surface-accent);
+}
+
+table thead th {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+table tbody tr:nth-child(even) {
+  background: rgba(244, 247, 244, 0.6);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(13, 140, 64, 0.4);
+  border-radius: 999px;
+}
+
