@@ -74,6 +74,8 @@ export default async function handler(req, res) {
             transmittalId: deployment.transmittalId || '',
             applicantId: deployment.applicantId || '',
             applicantName: applicant?.name || '',
+            applicantCompany: applicant?.company || '',
+            applicantPosition: applicant?.position || '',
             visaCompany: deployment.visaCompany || '',
             company: deployment.company || '',
             visaPosition: deployment.visaPosition || '',

@@ -10,7 +10,7 @@ import DeployedEditModal from '../../components/DeployedEditModal';
 import { Edit, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-const DEPLOYMENT_REFRESH_INTERVAL = 20000; // 20 seconds
+const DEPLOYMENT_REFRESH_INTERVAL = 10000; // 20 seconds
 const PAGE_SIZE = 15;
 
 export default function DeploymentPage() {
@@ -76,22 +76,38 @@ export default function DeploymentPage() {
 	}, [currentUser, fetchDeployments]);
 
 	const openApplicantModal = (d) => {
-		const applicant = d.applicantId ? { _id: d.applicantId } : null;
-		setSelectedApplicant(applicant);
+		setShowApplicantModal(true);
 		
-		// Fetch transmittals for this applicant
+		// Fetch full applicant data and transmittals for this applicant
 		if (d.applicantId) {
-			fetch(`/api/admin/transmittals?applicantId=${d.applicantId}`, { credentials: 'include' })
-				.then(res => res.json())
-				.then(data => {
-					setApplicantTransmittals(data.transmittals || []);
+			Promise.all([
+				fetch(`/api/admin/applicants?_id=${d.applicantId}`, { credentials: 'include' })
+					.then(res => res.json()),
+				fetch(`/api/admin/transmittals?applicantId=${d.applicantId}`, { credentials: 'include' })
+					.then(res => res.json())
+			])
+			.then(([applicantData, transmittalData]) => {
+				// API returns 'applicant' (singular) when fetching by _id
+				const fullApplicant = applicantData.applicant || (applicantData.applicants && applicantData.applicants[0]);
+				if (fullApplicant) {
+					setSelectedApplicant(fullApplicant);
+					setApplicantTransmittals(transmittalData.transmittals || []);
+				} else {
+					// Fallback: set temporary applicant
+					setSelectedApplicant({ _id: d.applicantId, name: d.applicantName });
+					setApplicantTransmittals(transmittalData.transmittals || []);
+				}
 				})
 				.catch(err => {
-					console.error('Error fetching transmittals:', err);
+					console.error('Error fetching applicant or transmittals:', err);
+					// Fallback: set temporary applicant
+					setSelectedApplicant({ _id: d.applicantId, name: d.applicantName });
 					setApplicantTransmittals([]);
 				});
+		} else {
+			setSelectedApplicant(null);
+			setApplicantTransmittals([]);
 		}
-		setShowApplicantModal(true);
 	};
 
 	const truthy = (v) => {
@@ -239,14 +255,14 @@ export default function DeploymentPage() {
 																{(yearMonthGroups[y][m] || []).map((d) => (
 																	<tr key={d._id} className="hover:bg-[var(--surface-muted)]/60 transition-colors">
 																		<td className="px-4 py-3 whitespace-normal text-[var(--color-text)] font-medium">
-																			<button onClick={() => openApplicantModal(d)} className="text-left w-full text-[var(--color-secondary)] hover:underline">
+																			<button onClick={() => openApplicantModal(d)} className="text-left w-full text-[var(--color-secondary)] hover:underline cursor-pointer">
 																				{d.applicantName || '—'}
 																			</button>
 																		</td>
 																		<td className="px-4 py-3 text-[var(--color-text)] break-words">{d.visaCompany || '—'}</td>
-																		<td className="px-4 py-3 text-[var(--color-text)] break-words">{d.company || '—'}</td>
+																		<td className="px-4 py-3 text-[var(--color-text)] break-words">{d.applicantCompany || '—'}</td>
 																		<td className="px-4 py-3 text-[var(--color-text)] break-words">{d.visaPosition || '—'}</td>
-																		<td className="px-4 py-3 text-[var(--color-text)] break-words">{d.position || '—'}</td>
+																		<td className="px-4 py-3 text-[var(--color-text)] break-words">{d.applicantPosition || '—'}</td>
 																		<td className="px-4 py-3 text-[var(--color-text)] break-words">{d.passportNos || '—'}</td>
 																		<td className="px-4 py-3 text-[var(--color-text)] break-words">{d.visaNo || '—'}</td>
 																		<td className="px-4 py-3 text-[var(--color-text)]">{d.deployedAt ? new Date(d.deployedAt).toLocaleDateString() : '—'}</td>

@@ -6,7 +6,7 @@ export const filterApplicants = (applicants, searchTerm) => {
     (applicant.position && applicant.position.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (applicant.company && applicant.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (applicant.ro && applicant.ro.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (applicant.phoneNumber && applicant.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()))
+    (applicant.phoneNumber && String(applicant.phoneNumber).toLowerCase().includes(searchTerm.toLowerCase()))
   );
 };
 
