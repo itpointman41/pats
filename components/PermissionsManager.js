@@ -11,6 +11,7 @@ const RESOURCES = [
   "deployment",
   "profile",
   "settings",
+  "companies",
 ];
 
 export default function PermissionsManager({ currentUser }) {
@@ -61,6 +62,17 @@ export default function PermissionsManager({ currentUser }) {
     setPermissionsDoc((p) => ({ ...(p || {}), [key]: value }));
   };
 
+  const broadcastPermissionsChange = () => {
+    try {
+      if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
+      const channel = new BroadcastChannel("permissions-updates");
+      channel.postMessage("permissions:refresh");
+      channel.close();
+    } catch (err) {
+      console.warn("Permissions broadcast failed", err);
+    }
+  };
+
   const handleSave = async () => {
     if (!isAdmin) return; // safety
     if (!selectedUserId) return setMessage("Select a user");
@@ -83,6 +95,7 @@ export default function PermissionsManager({ currentUser }) {
       if (!res.ok) throw new Error(data.error || "Failed to save");
 
       setMessage("Permissions saved");
+      broadcastPermissionsChange();
     } catch (err) {
       setMessage(err.message);
     } finally {

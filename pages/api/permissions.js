@@ -1,7 +1,12 @@
 import { getDb } from '../../lib/mongodb';
 import { getSessionCookie } from '../../lib/auth';
 import { ObjectId } from 'mongodb';
-import { getPermissionsForUser, setPermissionsForUser } from '../../lib/permissions';
+import {
+  getPermissionsForUser,
+  setPermissionsForUser,
+  ensureDefaultPermissionsForUser,
+  defaultPermissionsForRoleExport
+} from '../../lib/permissions';
 
 export default async function handler(req, res) {
   try {
@@ -15,6 +20,34 @@ export default async function handler(req, res) {
       currentUser = await users.findOne({ _id: new ObjectId(session) });
     }
 
+    const ensurePermissionsShape = async (userDoc, userId) => {
+      if (!userDoc) return null;
+      const role = (userDoc.role || 'staff').toLowerCase();
+      const defaults = defaultPermissionsForRoleExport(role);
+
+      let permsDoc = await getPermissionsForUser(userId);
+      if (!permsDoc) {
+        await ensureDefaultPermissionsForUser(userDoc);
+        permsDoc = await getPermissionsForUser(userId);
+      }
+      if (!permsDoc) return null;
+
+      const merged = {
+        ...defaults,
+        ...(permsDoc.permissions || {}),
+      };
+
+      // Persist merged permissions if they differ
+      const needsUpdate = Object.keys(defaults).some((key) => merged[key] !== (permsDoc.permissions || {})[key]);
+      if (needsUpdate) {
+        await setPermissionsForUser(userId, merged);
+        permsDoc = await getPermissionsForUser(userId);
+        return permsDoc;
+      }
+
+      return { ...permsDoc, permissions: merged };
+    };
+
     if (req.method === 'GET') {
       const { userId } = req.query || {};
       // If userId is provided, only allow admins to fetch others' permissions
@@ -23,13 +56,15 @@ export default async function handler(req, res) {
           return res.status(403).json({ error: 'Forbidden' });
         }
         if (!ObjectId.isValid(userId)) return res.status(400).json({ error: 'Invalid userId' });
-        const perms = await getPermissionsForUser(userId);
+        const targetUser = await users.findOne({ _id: new ObjectId(userId) });
+        if (!targetUser) return res.status(404).json({ error: 'User not found' });
+        const perms = await ensurePermissionsShape(targetUser, userId);
         return res.status(200).json({ permissions: perms });
       }
 
       // If no userId, return current user's permissions (or null)
       if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
-      const perms = await getPermissionsForUser(currentUser._id.toString());
+      const perms = await ensurePermissionsShape(currentUser, currentUser._id.toString());
       return res.status(200).json({ permissions: perms });
     }
 

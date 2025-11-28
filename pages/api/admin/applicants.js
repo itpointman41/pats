@@ -58,8 +58,14 @@ export default async function handler(req, res) {
         if (!applicant) {
           return res.status(404).json({ error: 'Applicant not found' });
         }
-        // Return full applicant object (stringify _id)
-        return res.status(200).json({ applicant: { ...applicant, _id: applicant._id.toString() } });
+        // Return full applicant object (stringify _id and companyId)
+        return res.status(200).json({ 
+          applicant: { 
+            ...applicant, 
+            _id: applicant._id.toString(),
+            companyId: applicant.companyId ? applicant.companyId.toString() : null
+          } 
+        });
       }
 
       const allApplicants = await applicants.find({}).toArray();
@@ -68,6 +74,7 @@ export default async function handler(req, res) {
         name: applicant.name || '',
         position: applicant.position || '',
         company: applicant.company || '',
+        companyId: applicant.companyId ? applicant.companyId.toString() : null,
         ro: applicant.ro || '',
         phoneNumber: applicant.phoneNumber || '',
         createdAt: applicant.createdAt
@@ -77,7 +84,7 @@ export default async function handler(req, res) {
 
     // POST - Create new applicant
     if (req.method === 'POST') {
-      const { name, position, company, ro, phoneNumber } = req.body;
+      const { name, position, company, companyId, ro, phoneNumber } = req.body;
 
       if (!name) {
         return res.status(400).json({ error: 'Name is required' });
@@ -88,7 +95,7 @@ export default async function handler(req, res) {
       const createdBy = session || null;
 
       // Create applicant
-      const result = await applicants.insertOne({
+      const applicantData = {
         name,
         position: position || '',
         company: company || '',
@@ -96,7 +103,14 @@ export default async function handler(req, res) {
         phoneNumber: phoneNumber || '',
         createdBy: createdBy,
         createdAt: new Date()
-      });
+      };
+
+      // Add companyId if provided and valid
+      if (companyId && ObjectId.isValid(companyId)) {
+        applicantData.companyId = new ObjectId(companyId);
+      }
+
+      const result = await applicants.insertOne(applicantData);
 
       const applicantId = result.insertedId.toString();
 
@@ -135,7 +149,7 @@ export default async function handler(req, res) {
 
     // PUT - Update applicant
     if (req.method === 'PUT') {
-      const { _id, name, position, company, ro, phoneNumber } = req.body;
+      const { _id, name, position, company, companyId, ro, phoneNumber } = req.body;
 
       if (!_id) {
         return res.status(400).json({ error: 'Applicant ID is required' });
@@ -151,6 +165,14 @@ export default async function handler(req, res) {
       if (company !== undefined) updateData.company = company;
       if (ro !== undefined) updateData.ro = ro;
       if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+      // Handle companyId - convert to ObjectId if provided
+      if (companyId !== undefined) {
+        if (companyId && ObjectId.isValid(companyId)) {
+          updateData.companyId = new ObjectId(companyId);
+        } else if (companyId === null || companyId === '') {
+          updateData.companyId = null;
+        }
+      }
 
       const result = await applicants.updateOne(
         { _id: new ObjectId(_id) },

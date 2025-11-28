@@ -6,6 +6,7 @@ export const getRoleBadgeColor = (role) => {
     hr: "bg-blue-100 text-blue-800",
     bio: "bg-purple-100 text-purple-800",
     ro: "bg-green-100 text-green-800",
+    receptionist: "bg-amber-100 text-amber-800",
     staff: "bg-gray-100 text-gray-800"
   };
   return colors[role] || colors.staff;

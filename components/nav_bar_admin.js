@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Applicants", href: "/applicants" },
-  { label: "Transmittal", href: "/transmittal" },
-  { label: "Deployed", href: "/deployment" },
-  { label: "PPT Status", href: "/passport_status" },
-  { label: "Users", href: "/users" },
+  { label: "Dashboard", href: "/dashboard", resource: "dashboard" },
+  { label: "Applicants", href: "/applicants", resource: "applicants" },
+  { label: "Transmittal", href: "/transmittal", resource: "transmittals" },
+  { label: "Deployed", href: "/deployment", resource: "deployment" },
+  { label: "PPT Status", href: "/passport_status", resource: "passports" },
+  { label: "Users", href: "/users", resource: "users" },
+  { label: "Companies", href: "/company", resource: "companies" },
 ];
 
-export default function NavBarAdmin({ username, role }) {
+export default function NavBarAdmin({ username, role, permissions = null }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const router = useRouter();
@@ -33,6 +34,18 @@ export default function NavBarAdmin({ username, role }) {
       };
     }
   }, [isDropdownOpen]);
+
+  const canAccess = (resource) => {
+    if (!resource) return true;
+    if (!permissions) return true;
+    const level = permissions[resource];
+    return level === "full" || level === "read";
+  };
+
+  const visibleNavItems = useMemo(
+    () => navItems.filter((item) => canAccess(item.resource)),
+    [permissions]
+  );
 
   const handleLogout = async () => {
     try {
@@ -75,7 +88,7 @@ export default function NavBarAdmin({ username, role }) {
               </div>
             </a>
             <nav className="hidden lg:flex items-center space-x-1">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const isActive = pathname?.startsWith(item.href);
                 return (
                   <a

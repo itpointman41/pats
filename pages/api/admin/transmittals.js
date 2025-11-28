@@ -104,6 +104,7 @@ export default async function handler(req, res) {
             stampVisa: transmittal.stampVisa || false,
             dateOfInsurance: transmittal.dateOfInsurance || null,
             waiver: transmittal.waiver || false,
+            remed: transmittal.remed || false,
             status: transmittal.status || 'pending',
             createdAt: transmittal.createdAt
           };
@@ -130,7 +131,8 @@ export default async function handler(req, res) {
         biometric,
         stampVisa,
         dateOfInsurance,
-        waiver
+        waiver,
+        remed
       } = req.body;
 
       if (!applicantId) {
@@ -170,6 +172,7 @@ export default async function handler(req, res) {
         stampVisa: stampVisa || false,
         dateOfInsurance: dateOfInsurance || null,
         waiver: waiver || false,
+        remed: remed || false,
         status: 'pending',
         createdBy: createdBy,
         createdAt: new Date()
@@ -209,6 +212,7 @@ export default async function handler(req, res) {
         stampVisa,
         dateOfInsurance,
         waiver,
+        remed,
         status,
         deployedAt
       } = req.body;
@@ -247,6 +251,7 @@ export default async function handler(req, res) {
       if (stampVisa !== undefined) updateData.stampVisa = stampVisa;
       if (dateOfInsurance !== undefined) updateData.dateOfInsurance = dateOfInsurance || null;
       if (waiver !== undefined) updateData.waiver = waiver;
+      if (remed !== undefined) updateData.remed = remed;
       // always allow deployedAt and status on transmittal, but deployment details go to deployments collection
       if (deployedAt !== undefined) updateData.deployedAt = deployedAt || null;
       if (status !== undefined) updateData.status = status;

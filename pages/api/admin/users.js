@@ -125,7 +125,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
       }
 
-      const validRoles = ['admin', 'hr', 'bio', 'ro', 'staff'];
+      const validRoles = ['admin', 'hr', 'bio', 'ro', 'staff', 'receptionist'];
       const userRole = role || 'staff';
       if (!validRoles.includes(userRole)) {
         return res.status(400).json({ error: 'Invalid role' });
@@ -200,7 +200,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'User ID is required' });
       }
 
-      const validRoles = ['admin', 'hr', 'bio', 'ro', 'staff'];
+      const validRoles = ['admin', 'hr', 'bio', 'ro', 'staff', 'receptionist'];
       if (role && !validRoles.includes(role)) {
         return res.status(400).json({ error: 'Invalid role' });
       }

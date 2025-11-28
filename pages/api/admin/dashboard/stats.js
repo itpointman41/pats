@@ -25,7 +25,8 @@ async function requireAdmin(req) {
       return { error: 'Unauthorized', status: 401 };
     }
 
-    if (!['admin', 'ro'].includes(user.role)) {
+    const allowedRoles = ['admin', 'ro', 'receptionist'];
+    if (!allowedRoles.includes((user.role || '').toLowerCase())) {
         console.error('User does not have dashboard access. Role:', user.role, 'Session:', session);
       return { error: 'Forbidden', status: 403 };
     }
@@ -105,6 +106,7 @@ export default async function handler(req, res) {
       hr: 0,
       bio: 0,
       ro: 0,
+      receptionist: 0,
       staff: 0
     };
 

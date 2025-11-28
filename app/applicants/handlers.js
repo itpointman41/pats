@@ -14,6 +14,7 @@ export const getInitialFormData = () => ({
   name: "",
   position: "",
   company: "",
+  companyId: "",
   ro: "",
   phoneNumber: ""
 });
@@ -22,6 +23,7 @@ export const getApplicantFormData = (applicant) => ({
   name: applicant.name || "",
   position: applicant.position || "",
   company: applicant.company || "",
+  companyId: applicant.companyId || "",
   ro: applicant.ro || "",
   phoneNumber: applicant.phoneNumber || ""
 });

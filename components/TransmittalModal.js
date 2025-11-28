@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { X } from "lucide-react";
 
 const CLINICS = [
   "PDS Manila",
@@ -173,12 +174,27 @@ export default function TransmittalModal({ show, editingTransmittal, formData, e
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-bold mb-4">
-          {editingTransmittal ? "Edit Transmittal" : "Create Transmittal"}
-        </h2>
-        <form onSubmit={onSubmit} className="space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-4xl bg-white/95 rounded-3xl shadow-2xl border border-white/60 overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
+              Transmittal
+            </p>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {editingTransmittal ? "Edit Transmittal" : "Create Transmittal"}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={onSubmit} className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-4">
           <div className="relative" ref={applicantDropdownRef}>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Applicant *
@@ -305,6 +321,17 @@ export default function TransmittalModal({ show, editingTransmittal, formData, e
                 <label htmlFor="waiver" className="text-sm text-gray-700">Waiver</label>
               </div>
 
+              <div className="flex items-center space-x-2">
+                <input
+                  id="remed"
+                  type="checkbox"
+                  checked={Boolean(formData.remed)}
+                  onChange={(e) => onFormChange({ ...formData, remed: e.target.checked })}
+                  className="h-4 w-4 text-[#0d8c40] border-gray-300 rounded"
+                />
+                <label htmlFor="remed" className="text-sm text-gray-700">Remed</label>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
                 <textarea
@@ -355,6 +382,17 @@ export default function TransmittalModal({ show, editingTransmittal, formData, e
                   className="h-4 w-4 text-[#0d8c40] border-gray-300 rounded"
                 />
                 <label htmlFor="waiver" className="text-sm text-gray-700">Waiver</label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  id="remed"
+                  type="checkbox"
+                  checked={Boolean(formData.remed)}
+                  onChange={(e) => onFormChange({ ...formData, remed: e.target.checked })}
+                  className="h-4 w-4 text-[#0d8c40] border-gray-300 rounded"
+                />
+                <label htmlFor="remed" className="text-sm text-gray-700">Remed</label>
               </div>
 
               <div>

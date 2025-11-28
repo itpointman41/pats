@@ -253,30 +253,6 @@ export default function ApplicantViewModal({ show, applicant, transmittals: init
                             <input type="checkbox" checked={!!editForm.biometric} onChange={(e) => setEditForm(prev => ({ ...prev, biometric: e.target.checked }))} />
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500">Visa Company</div>
-                            <input className="input-soft w-full mt-1" value={editForm.visaCompany || ''} onChange={(e) => setEditForm(prev => ({ ...prev, visaCompany: e.target.value }))} />
-                          </div>
-                          <div>
-                            <div className="text-xs text-gray-500">Actual Company</div>
-                            <input className="input-soft w-full mt-1" value={editForm.company || ''} onChange={(e) => setEditForm(prev => ({ ...prev, company: e.target.value }))} />
-                          </div>
-                          <div>
-                            <div className="text-xs text-gray-500">Visa Position</div>
-                            <input className="input-soft w-full mt-1" value={editForm.visaPosition || ''} onChange={(e) => setEditForm(prev => ({ ...prev, visaPosition: e.target.value }))} />
-                          </div>
-                          <div>
-                            <div className="text-xs text-gray-500">Actual Position</div>
-                            <input className="input-soft w-full mt-1" value={editForm.position || ''} onChange={(e) => setEditForm(prev => ({ ...prev, position: e.target.value }))} />
-                          </div>
-                          <div>
-                            <div className="text-xs text-gray-500">Passport Nos.</div>
-                            <input className="input-soft w-full mt-1" value={editForm.passportNos || ''} onChange={(e) => setEditForm(prev => ({ ...prev, passportNos: e.target.value }))} />
-                          </div>
-                          <div>
-                            <div className="text-xs text-gray-500">Visa No./ Sponsor No.</div>
-                            <input className="input-soft w-full mt-1" value={editForm.visaNo || editForm.sponsorNo || ''} onChange={(e) => setEditForm(prev => ({ ...prev, visaNo: e.target.value, sponsorNo: e.target.value }))} />
-                          </div>
-                          <div>
                             <div className="text-xs text-gray-500">Date of deployment</div>
                             <input type="date" className="input-soft w-full mt-1" value={editForm.deployedAt || ''} onChange={(e) => setEditForm(prev => ({ ...prev, deployedAt: e.target.value }))} />
                           </div>
@@ -289,12 +265,6 @@ export default function ApplicantViewModal({ show, applicant, transmittals: init
                           <Field label="Vax Cert" value={truthy(t.vaccineCert) ? 'Yes' : '—'} />
                           <Field label="Date EMed Uploaded" value={t.dateOfEmedUploaded ? new Date(t.dateOfEmedUploaded).toLocaleDateString() : ''} />
                           <Field label="Biometric" value={truthy(t.biometric) ? 'Yes' : '—'} />
-                          <Field label="Visa Company" value={t.visaCompany} />
-                          <Field label="Actual Company" value={t.company} />
-                          <Field label="Visa Position" value={t.visaPosition} />
-                          <Field label="Actual Position" value={t.position} />
-                          <Field label="Passport Nos." value={t.passportNos} />
-                          <Field label="Visa No./ Sponsor No." value={t.visaNo || t.sponsorNo} />
                           <Field label="Date of deployment" value={t.deployedAt ? new Date(t.deployedAt).toLocaleDateString() : ''} />
                         </>
                       )}
@@ -343,22 +313,6 @@ export default function ApplicantViewModal({ show, applicant, transmittals: init
 
                       {/* Date fields */}
                       <div>
-                        <div className="text-xs text-gray-500">Date Of Medical</div>
-                        {editingId === t._id ? (
-                          <input type="date" className="input-soft w-full mt-1" value={editForm.dateOfMedical || ''} onChange={(e) => setEditForm(prev => ({ ...prev, dateOfMedical: e.target.value }))} />
-                        ) : (
-                          <div className="text-sm text-gray-900">{t.dateOfMedical ? new Date(t.dateOfMedical).toLocaleDateString() : '—'}</div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500">Medical Expiration</div>
-                        {editingId === t._id ? (
-                          <input type="date" className="input-soft w-full mt-1" value={editForm.medicalExpiration || ''} onChange={(e) => setEditForm(prev => ({ ...prev, medicalExpiration: e.target.value }))} />
-                        ) : (
-                          <div className="text-sm text-gray-900">{t.medicalExpiration ? new Date(t.medicalExpiration).toLocaleDateString() : '—'}</div>
-                        )}
-                      </div>
-                      <div>
                         <div className="text-xs text-gray-500">E-med Uploaded</div>
                         {editingId === t._id ? (
                           <input type="date" className="input-soft w-full mt-1" value={editForm.dateOfEmedUploaded || ''} onChange={(e) => setEditForm(prev => ({ ...prev, dateOfEmedUploaded: e.target.value }))} />
@@ -372,14 +326,6 @@ export default function ApplicantViewModal({ show, applicant, transmittals: init
                           <input type="date" className="input-soft w-full mt-1" value={editForm.dateOfInsurance || ''} onChange={(e) => setEditForm(prev => ({ ...prev, dateOfInsurance: e.target.value }))} />
                         ) : (
                           <div className="text-sm text-gray-900">{t.dateOfInsurance ? new Date(t.dateOfInsurance).toLocaleDateString() : '—'}</div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500">Deployed At</div>
-                        {editingId === t._id ? (
-                          <input type="date" className="input-soft w-full mt-1" value={editForm.deployedAt || ''} onChange={(e) => setEditForm(prev => ({ ...prev, deployedAt: e.target.value }))} />
-                        ) : (
-                          <div className="text-sm text-gray-900">{t.deployedAt ? new Date(t.deployedAt).toLocaleDateString() : '—'}</div>
                         )}
                       </div>
 
@@ -403,7 +349,6 @@ export default function ApplicantViewModal({ show, applicant, transmittals: init
                       </div>
 
                       {saveError && editingId === t._id ? <div className="sm:col-span-2 text-sm text-red-600">{saveError}</div> : null}
-                      <Field label="Waiver" value={truthy(t.waiver) ? 'Yes' : '—'} />
                     </div>
                   </div>
                 ))}

@@ -89,6 +89,7 @@ export default function DashboardContent() {
     { name: 'HR', value: stats.roleBreakdown.hr },
     { name: 'Bio', value: stats.roleBreakdown.bio },
     { name: 'RO', value: stats.roleBreakdown.ro },
+    { name: 'Receptionist', value: stats.roleBreakdown.receptionist },
     { name: 'Staff', value: stats.roleBreakdown.staff }
   ].filter(item => item.value > 0);
 

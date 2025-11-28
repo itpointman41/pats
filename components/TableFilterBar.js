@@ -8,6 +8,7 @@ export default function TableFilterBar({
   onSearchChange,
   searchPlaceholder = "Search...",
   actions,
+  leadingContent = null,
   className = "",
 }) {
   const handleChange = (event) => {
@@ -35,15 +36,20 @@ export default function TableFilterBar({
       </div>
 
       <div className="w-full md:w-auto flex flex-col sm:flex-row sm:items-center gap-3">
+        {leadingContent && (
+          <div className="sm:order-1">
+            {leadingContent}
+          </div>
+        )}
         <input
           type="text"
           value={searchValue ?? ""}
           onChange={handleChange}
           placeholder={searchPlaceholder}
-          className="input-soft w-full sm:w-72"
+          className="input-soft w-full sm:w-72 sm:order-2"
         />
         {actions && (
-          <div className="sm:ml-2">
+          <div className="sm:ml-2 sm:order-3">
             {actions}
           </div>
         )}

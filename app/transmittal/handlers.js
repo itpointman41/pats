@@ -28,7 +28,8 @@ export const getInitialFormData = () => ({
   biometric: false,
   stampVisa: false,
   dateOfInsurance: "",
-  waiver: false
+  waiver: false,
+  remed: false
 });
 
 export const getTransmittalFormData = (transmittal) => ({
@@ -50,7 +51,8 @@ export const getTransmittalFormData = (transmittal) => ({
   biometric: Boolean(transmittal.biometric),
   stampVisa: Boolean(transmittal.stampVisa),
   dateOfInsurance: transmittal.dateOfInsurance || "",
-  waiver: Boolean(transmittal.waiver)
+  waiver: Boolean(transmittal.waiver),
+  remed: Boolean(transmittal.remed)
 });
 
 // API functions

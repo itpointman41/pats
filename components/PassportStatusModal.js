@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
+import { X, FilePlus2 } from 'lucide-react';
 
-export default function PassportStatusModal({ show, transmittal, onClose, onSave }) {
+export default function PassportStatusModal({
+  show,
+  record = null,
+  mode = 'edit', // 'edit' | 'create'
+  applicants = [],
+  onClose,
+  onSave
+}) {
   const [naNo, setNaNo] = useState('');
   const [applicantName, setApplicantName] = useState('');
+  const [applicantId, setApplicantId] = useState('');
+  const [applicantQuery, setApplicantQuery] = useState('');
+  const [showApplicantDropdown, setShowApplicantDropdown] = useState(false);
   const [passportNos, setPassportNos] = useState('');
   const [passportExpiry, setPassportExpiry] = useState('');
   const [depositDate, setDepositDate] = useState('');
@@ -15,48 +26,72 @@ export default function PassportStatusModal({ show, transmittal, onClose, onSave
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!show || !transmittal) return;
-    // Prefer passport collection fields when available (transmittal.passport)
-    const src = transmittal.passport || transmittal;
-    setNaNo(src.naNo || null || '');
-    setApplicantName(src.applicantName || (transmittal.applicant && transmittal.applicant.name) || '');
-    setPassportNos(src.passportNos || '');
-    setPassportExpiry(src.passportExpiry ? new Date(src.passportExpiry).toISOString().slice(0,10) : '');
-    setDepositDate(src.depositDate ? new Date(src.depositDate).toISOString().slice(0,10) : '');
-    setWithdrawalDate(src.withdrawalDate ? new Date(src.withdrawalDate).toISOString().slice(0,10) : '');
-    setWithdrawalReason(src.withdrawalReason || '');
-    setRemarks(src.remarks || '');
-  }, [show, transmittal]);
+    if (!show) return;
 
-  if (!show || !transmittal) return null;
+    if (mode === 'edit' && record) {
+      const src = record;
+      setNaNo(src.naNo || '');
+      setApplicantName(src.applicantName || '');
+      setApplicantQuery(src.applicantName || '');
+      setApplicantId(src.applicantId || '');
+      setPassportNos(src.passportNos || '');
+      setPassportExpiry(src.passportExpiry ? new Date(src.passportExpiry).toISOString().slice(0,10) : '');
+      setDepositDate(src.depositDate ? new Date(src.depositDate).toISOString().slice(0,10) : '');
+      setWithdrawalDate(src.withdrawalDate ? new Date(src.withdrawalDate).toISOString().slice(0,10) : '');
+      setWithdrawalReason(src.withdrawalReason || '');
+      setRemarks(src.remarks || '');
+    } else if (mode === 'create') {
+      setNaNo('');
+      setApplicantName('');
+      setApplicantQuery('');
+      setApplicantId('');
+      setPassportNos('');
+      setPassportExpiry('');
+      setDepositDate('');
+      setWithdrawalDate('');
+      setWithdrawalReason('');
+      setRemarks('');
+    }
+  }, [show, mode, record]);
+
+  const filteredApplicants = useMemo(() => {
+    if (!applicantQuery) return applicants.slice(0, 8);
+    const term = applicantQuery.toLowerCase();
+    return applicants.filter(a => (a.name || '').toLowerCase().includes(term)).slice(0, 8);
+  }, [applicants, applicantQuery]);
+
+  if (!show) return null;
+
+  const handleApplicantSelect = (applicant) => {
+    setApplicantId(applicant._id);
+    setApplicantName(applicant.name || '');
+    setApplicantQuery(applicant.name || '');
+    setShowApplicantDropdown(false);
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      // Save passport record to passports collection (upsert by applicantId)
-
-      const applicantId = transmittal.applicantId || (transmittal.applicant && transmittal.applicant._id) || null;
-      // Log applicantId for debugging
-      console.log('PassportStatusModal: applicantId to save:', applicantId);
-      // Validate applicantId is a valid MongoDB ObjectId (24 hex chars)
-      if (!applicantId || typeof applicantId !== 'string' || !/^[a-fA-F0-9]{24}$/.test(applicantId)) {
-        Swal.fire('Error', 'Invalid applicantId: ' + applicantId + '\nCannot save passport record.', 'error');
+      const resolvedApplicantId = applicantId || record?.applicantId || null;
+      if (!resolvedApplicantId || typeof resolvedApplicantId !== 'string' || !/^[a-fA-F0-9]{24}$/.test(resolvedApplicantId)) {
+        Swal.fire('Error', 'Please select a valid applicant.', 'error');
         setSaving(false);
         return;
       }
 
       const body = {
-        applicantId: applicantId,
+        _id: record?._id,
+        applicantId: resolvedApplicantId,
         naNo: naNo || null,
-        applicantName: applicantName || null,
+        applicantName: (applicantName || applicantQuery || '').trim() || null,
         passportNos: passportNos || null,
         passportExpiry: passportExpiry ? new Date(passportExpiry).toISOString() : null,
         depositDate: depositDate ? new Date(depositDate).toISOString() : null,
         withdrawalDate: withdrawalDate ? new Date(withdrawalDate).toISOString() : null,
         withdrawalReason: withdrawalReason || null,
         remarks: remarks || null,
-        transmittalId: transmittal._id || null
+        transmittalId: record?.transmittalId || null
       };
 
       const res = await fetch('/api/admin/passports', {
@@ -91,22 +126,77 @@ export default function PassportStatusModal({ show, transmittal, onClose, onSave
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4">
-      <div className="w-full max-w-2xl">
-        <form onSubmit={handleSave} className="bg-white rounded-lg p-4 sm:p-6 w-full max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="text-lg font-semibold">Edit Passport Status</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-3xl bg-white/95 rounded-3xl shadow-2xl border border-white/60 overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center">
+              <FilePlus2 size={20} />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
+                Passports
+              </p>
+              <h3 className="text-xl font-semibold text-gray-900">
+                {mode === 'create' ? 'Add Passport Record' : 'Edit Passport Status'}
+              </h3>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <form onSubmit={handleSave} className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-700 mb-1">NA No.</label>
               <input type="text" value={naNo} onChange={(e) => setNaNo(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
             </div>
 
-            <div>
+            <div className="relative sm:col-span-2">
               <label className="block text-sm text-gray-700 mb-1">Name</label>
-              <input type="text" value={applicantName} onChange={(e) => setApplicantName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" disabled />
+              <input
+                type="text"
+                value={applicantQuery}
+                onChange={(e) => {
+                  setApplicantQuery(e.target.value);
+                  if (mode === 'create') {
+                    setShowApplicantDropdown(true);
+                    setApplicantId('');
+                  }
+                }}
+                onFocus={() => mode === 'create' && setShowApplicantDropdown(true)}
+                disabled={mode !== 'create'}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                placeholder={mode === 'create' ? 'Search applicant...' : ''}
+              />
+              {mode === 'create' && showApplicantDropdown && filteredApplicants.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow max-h-48 overflow-y-auto">
+                  {filteredApplicants.map(applicant => (
+                    <button
+                      type="button"
+                      key={applicant._id}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleApplicantSelect(applicant);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                    >
+                      <div className="font-medium text-gray-900">{applicant.name}</div>
+                      <div className="text-xs text-gray-500">{applicant.position || applicant.company || ''}</div>
+                    </button>
+                  ))}
+                  {filteredApplicants.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-gray-500">No matches</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
