@@ -46,69 +46,142 @@ export default async function handler(req, res) {
     const transmittals = db.collection('transmittals');
     const applicants = db.collection('applicants');
 
-    // GET - List all deployments with transmittal and applicant details
+    // GET - List deployments with server-side pagination and optional search
     if (req.method === 'GET') {
-      const found = await deployments.find({}).toArray();
+      const {
+        page = 1,
+        limit: limitParam,
+        search = ''
+      } = req.query || {};
 
-      // Fetch transmittal and applicant data for each deployment
-      const deploymentsList = await Promise.all(
-        found.map(async (deployment) => {
-          let transmittal = null;
-          let applicant = null;
-          try {
-            const transmittalId = deployment.transmittalId;
-            if (transmittalId) {
-              transmittal = await transmittals.findOne({ _id: new ObjectId(transmittalId) });
-            }
+      const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
+      const requestedLimit = limitParam !== undefined ? parseInt(limitParam, 10) : NaN;
+      const baseLimit = Number.isNaN(requestedLimit) ? 25 : requestedLimit;
+      const parsedLimit = Math.min(Math.max(baseLimit, 1), 200);
+      const skip = (parsedPage - 1) * parsedLimit;
 
-            const applicantId = deployment.applicantId;
-            if (applicantId) {
-              applicant = await applicants.findOne({ _id: new ObjectId(applicantId) });
-            }
-          } catch (err) {
-            console.error('Error fetching transmittal or applicant:', err);
+      const matchStage = {};
+
+      // Build aggregation pipeline with applicant lookup so we can search by applicant fields
+      const pipeline = [
+        { $match: matchStage },
+        {
+          $lookup: {
+            from: 'applicants',
+            let: {
+              applicantIdStr: {
+                $cond: [
+                  { $eq: [{ $type: '$applicantId' }, 'objectId'] },
+                  { $toString: '$applicantId' },
+                  '$applicantId'
+                ]
+              }
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $ne: ['$$applicantIdStr', null] },
+                      { $eq: [{ $toString: '$_id' }, '$$applicantIdStr'] }
+                    ]
+                  }
+                }
+              },
+              {
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  company: 1,
+                  position: 1,
+                  ro: 1
+                }
+              }
+            ],
+            as: 'applicant'
           }
+        },
+        { $unwind: { path: '$applicant', preserveNullAndEmptyArrays: true } }
+      ];
 
-          return {
-            _id: deployment._id.toString(),
-            transmittalId: deployment.transmittalId || '',
-            applicantId: deployment.applicantId || '',
-            applicantName: applicant?.name || '',
-            applicantCompany: applicant?.company || '',
-            applicantPosition: applicant?.position || '',
-            visaCompany: deployment.visaCompany || '',
-            company: deployment.company || '',
-            visaPosition: deployment.visaPosition || '',
-            position: deployment.position || '',
-            passportNos: deployment.passportNos || '',
-            visaNo: deployment.visaNo || '',
-            dateOfEmedUploaded: deployment.dateOfEmedUploaded || null,
-            dateOfInsurance: deployment.dateOfInsurance || null,
-            deployedAt: deployment.deployedAt || null,
-            ro: applicant?.ro || '',
-            createdAt: deployment.createdAt,
-            transmittal: transmittal ? {
-              _id: transmittal._id.toString(),
-              findings: transmittal.findings || '',
-              clinicRemarks: transmittal.clinicRemarks || '',
-              clinic: transmittal.clinic || '',
-              payment: transmittal.payment || '',
-              remarks: transmittal.remarks || '',
-              dateOfMedical: transmittal.dateOfMedical || null,
-              medicalExpiration: transmittal.medicalExpiration || null,
-              medicalCert: transmittal.medicalCert || false,
-              vaccineCert: transmittal.vaccineCert || false,
-              biometric: transmittal.biometric || false,
-              stampVisa: transmittal.stampVisa || false,
-              waiver: transmittal.waiver || false,
-              status: transmittal.status || 'pending',
-              createdAt: transmittal.createdAt
-            } : null
-          };
-        })
-      );
+      // Add search across relevant fields if provided
+      if (search) {
+        const regex = new RegExp(String(search), 'i');
+        pipeline.push({
+          $match: {
+            $or: [
+              { 'applicant.name': regex },
+              { 'applicant.company': regex },
+              { 'applicant.position': regex },
+              { visaCompany: regex },
+              { company: regex },
+              { visaPosition: regex },
+              { position: regex },
+              { passportNos: regex },
+              { visaNo: regex }
+            ]
+          }
+        });
+      }
 
-      return res.status(200).json({ deployments: deploymentsList });
+      const facetPipeline = [
+        ...pipeline,
+        {
+          $facet: {
+            data: [
+              { $sort: { deployedAt: -1, createdAt: -1 } },
+              { $skip: skip },
+              { $limit: parsedLimit }
+            ],
+            totalCount: [
+              { $count: 'count' }
+            ]
+          }
+        }
+      ];
+
+      const agg = await deployments.aggregate(facetPipeline).toArray();
+      const payload = agg[0] || {};
+      const resultData = payload.data || [];
+      const totalCount = payload.totalCount?.[0]?.count || 0;
+
+      const deploymentsList = resultData.map((deployment) => {
+        const applicant = deployment.applicant || null;
+        const applicantIdValue =
+          typeof deployment.applicantId === 'object' && deployment.applicantId?.toString
+            ? deployment.applicantId.toString()
+            : deployment.applicantId || (applicant?._id?.toString?.() ?? '');
+
+        return {
+          _id: deployment._id.toString(),
+          transmittalId: deployment.transmittalId || '',
+          applicantId: applicantIdValue,
+          applicantName: applicant?.name || '',
+          applicantCompany: applicant?.company || '',
+          applicantPosition: applicant?.position || '',
+          visaCompany: deployment.visaCompany || '',
+          company: deployment.company || '',
+          visaPosition: deployment.visaPosition || '',
+          position: deployment.position || '',
+          passportNos: deployment.passportNos || '',
+          visaNo: deployment.visaNo || '',
+          dateOfEmedUploaded: deployment.dateOfEmedUploaded || null,
+          dateOfInsurance: deployment.dateOfInsurance || null,
+          deployedAt: deployment.deployedAt || null,
+          ro: applicant?.ro || '',
+          createdAt: deployment.createdAt || null
+        };
+      });
+
+      return res.status(200).json({
+        deployments: deploymentsList,
+        pagination: {
+          total: totalCount,
+          page: parsedPage,
+          limit: parsedLimit,
+          totalPages: Math.ceil(totalCount / parsedLimit)
+        }
+      });
     }
 
     // PUT - Update deployment (deployment-specific fields only)

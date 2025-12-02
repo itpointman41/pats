@@ -21,6 +21,7 @@ export default function DeploymentPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [deployments, setDeployments] = useState([]);
+	const [totalDeployments, setTotalDeployments] = useState(0);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [showApplicantModal, setShowApplicantModal] = useState(false);
 	const [selectedApplicant, setSelectedApplicant] = useState(null);
@@ -61,24 +62,40 @@ export default function DeploymentPage() {
 		</div>
 	);
 
-	const fetchDeployments = useCallback(async (silent = false) => {
-		if (!silent) setLoading(true);
-		try {
-			const res = await fetch('/api/admin/deployments', { credentials: 'include' });
-			const data = await res.json();
-			if (!res.ok) {
-				setError(data.error || 'Failed to load deployments');
+	const fetchDeployments = useCallback(
+		async ({ silent = false, page = currentPage, search = searchTerm } = {}) => {
+			if (!silent) setLoading(true);
+			try {
+				const params = new URLSearchParams({
+					page: String(page),
+					limit: String(pageSize),
+				});
+				if (search) {
+					params.append('search', search);
+				}
+
+				const res = await fetch(`/api/admin/deployments?${params.toString()}`, {
+					credentials: 'include',
+				});
+				const data = await res.json();
+				if (!res.ok) {
+					setError(data.error || 'Failed to load deployments');
+					setDeployments([]);
+					setTotalDeployments(0);
+				} else {
+					setDeployments(data.deployments || []);
+					setTotalDeployments(data.pagination?.total ?? data.deployments?.length ?? 0);
+				}
+			} catch (err) {
+				setError('Failed to load deployments');
 				setDeployments([]);
-			} else {
-				setDeployments(data.deployments || []);
+				setTotalDeployments(0);
+			} finally {
+				if (!silent) setLoading(false);
 			}
-		} catch (err) {
-			setError('Failed to load deployments');
-			setDeployments([]);
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+		},
+		[currentPage, pageSize, searchTerm]
+	);
 
 	useEffect(() => {
 		fetch('/api/auth/check', { credentials: 'include' })
@@ -99,12 +116,15 @@ export default function DeploymentPage() {
 
 	useEffect(() => {
 		if (!currentUser) return;
-		fetchDeployments();
+		fetchDeployments({ page: 1 });
 	}, [currentUser, fetchDeployments]);
 
 	useEffect(() => {
 		if (!currentUser) return;
-		const interval = setInterval(() => fetchDeployments(true), DEPLOYMENT_REFRESH_INTERVAL);
+		const interval = setInterval(
+			() => fetchDeployments({ silent: true }),
+			DEPLOYMENT_REFRESH_INTERVAL
+		);
 		return () => clearInterval(interval);
 	}, [currentUser, fetchDeployments]);
 
@@ -187,26 +207,17 @@ export default function DeploymentPage() {
 	};
 
 
-	// Filter deployments by searchTerm
-	const term = (searchTerm || '').toLowerCase().trim();
-	const filteredDeployments = term ? (deployments || []).filter(d => {
-		const fields = [
-			d.applicantName,
-			d.visaCompany,
-			d.applicantCompany,
-			d.visaPosition,
-			d.applicantPosition,
-			d.passportNos,
-			d.visaNo,
-			d.ro
-		];
-		return fields.some(f => f && String(f).toLowerCase().includes(term));
-	}) : (deployments || []);
-	const filteredCount = filteredDeployments.length;
+	// With server-side pagination + search, the API already returns the current
+	// page of filtered deployments and total count.
+	const filteredDeployments = deployments || [];
+	const filteredCount = totalDeployments;
 
 	useEffect(() => {
 		setCurrentPage(1);
-	}, [searchTerm, filteredCount, pageSize]);
+		if (currentUser) {
+			fetchDeployments({ page: 1 });
+		}
+	}, [searchTerm, pageSize, currentUser, fetchDeployments]);
 
 	const sortedDeployments = [...filteredDeployments].sort((a, b) => {
 		const dateA = a.deployedAt ? new Date(a.deployedAt).getTime() : 0;
@@ -214,8 +225,9 @@ export default function DeploymentPage() {
 		return dateB - dateA;
 	});
 
-	const startIndex = (currentPage - 1) * pageSize;
-	const paginatedDeployments = sortedDeployments.slice(startIndex, startIndex + pageSize);
+	// The current page is already applied on the server, so just use the
+	// current sorted array directly for grouping & display.
+	const paginatedDeployments = sortedDeployments;
 
 	const getYear = (t) => {
 		if (!t.deployedAt) return 'Unknown';
@@ -521,13 +533,16 @@ export default function DeploymentPage() {
 											))}
 										</div>
 									))}
-									<PaginationControls
-										currentPage={currentPage}
-										onPageChange={setCurrentPage}
-										totalItems={filteredCount}
-										pageSize={pageSize}
-										label="deployments"
-									/>
+								<PaginationControls
+									currentPage={currentPage}
+									onPageChange={(page) => {
+										setCurrentPage(page);
+										fetchDeployments({ page });
+									}}
+									totalItems={filteredCount}
+									pageSize={pageSize}
+									label="deployments"
+								/>
 								</>
 							)}
 						</div>
