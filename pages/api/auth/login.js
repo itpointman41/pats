@@ -14,7 +14,22 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const db = await getDb();
+    // Test database connection first
+    let db;
+    try {
+      db = await getDb();
+    } catch (dbError) {
+      console.error('Database connection error in login:', {
+        message: dbError.message,
+        stack: dbError.stack,
+        code: dbError.code,
+        name: dbError.name
+      });
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        details: process.env.NODE_ENV === 'development' ? dbError.message : 'Unable to connect to database. Please check server logs.'
+      });
+    }
     const users = db.collection('users');
 
     // Find user
