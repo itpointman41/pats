@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Edit, Trash2, CircleCheckBig, AlertCircle } from 'lucide-react';
+import { Edit, Trash2, CircleCheckBig, AlertCircle, ArrowLeft } from 'lucide-react';
 import ApplicantViewModal from './ApplicantViewModal';
 import ProcessModal from './ProcessModal';
 import PaginationControls from "./PaginationControls";
+import Swal from 'sweetalert2';
 
-export default function TransmittalEncodeTab({ transmittals, onEdit, onDelete, onFTW, pageSize = 20, canManage = false }) {
+export default function TransmittalEncodeTab({ transmittals, onEdit, onDelete, onFTW, pageSize = 20, canManage = false, onRefresh }) {
   // Single expanded key to ensure only one cell expanded at a time across rows
   const [expandedKey, setExpandedKey] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -76,6 +77,44 @@ export default function TransmittalEncodeTab({ transmittals, onEdit, onDelete, o
       setViewApplicant(null);
       setSelectedTransmittal(t);
       setShowViewModal(true);
+    }
+  };
+
+  const handleReturnToPending = async (id) => {
+    if (!canManage) return;
+    const result = await Swal.fire({
+      title: 'Return to Pending?',
+      text: 'This will change the transmittal status from Encode back to Pending.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, return to Pending',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch('/api/admin/transmittals', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ _id: id, status: 'pending' })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        await Swal.fire('Error', data.error || 'Failed to update status', 'error');
+        return;
+      }
+      await Swal.fire('Updated', 'Transmittal returned to Pending.', 'success');
+      // Trigger a refresh
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Return to pending error', err);
+      await Swal.fire('Error', 'Failed to update status', 'error');
     }
   };
 
@@ -188,6 +227,17 @@ export default function TransmittalEncodeTab({ transmittals, onEdit, onDelete, o
                             title="Delete"
                           >
                             <Trash2 size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReturnToPending(t._id);
+                            }}
+                            className="p-1.5 rounded-md hover:bg-orange-100 text-orange-600 hover:text-orange-700 transition-colors"
+                            aria-label={`Return transmittal ${t._id} to Pending`}
+                            title="Return to Pending"
+                          >
+                            <ArrowLeft size={16} />
                           </button>
                           <button
                             onClick={(e) => {

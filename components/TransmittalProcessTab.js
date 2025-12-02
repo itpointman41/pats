@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Edit, Trash2, CircleCheckBig, AlertCircle } from 'lucide-react';
+import { Edit, Trash2, CircleCheckBig, AlertCircle, ArrowLeft } from 'lucide-react';
 import Swal from 'sweetalert2';
 import ApplicantViewModal from './ApplicantViewModal';
 import PaginationControls from './PaginationControls'; // make sure this exists
@@ -13,6 +13,7 @@ export default function TransmittalProcessTab({
   onFTW,
   pageSize = 20,
   canManage = false,
+  onRefresh,
 }) {
   const [expandedKey, setExpandedKey] = useState(null);
   const [viewApplicant, setViewApplicant] = useState(null);
@@ -76,6 +77,44 @@ export default function TransmittalProcessTab({
   useEffect(() => {
     setCurrentPage(1);
   }, [totalItems, pageSize]);
+
+  const handleReturnToEncode = async (id) => {
+    if (!canManage) return;
+    const result = await Swal.fire({
+      title: 'Return to Encode?',
+      text: 'This will change the transmittal status from Process back to Encode.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, return to Encode',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch('/api/admin/transmittals', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ _id: id, status: 'encode' })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        await Swal.fire('Error', data.error || 'Failed to update status', 'error');
+        return;
+      }
+      await Swal.fire('Updated', 'Transmittal returned to Encode.', 'success');
+      // Trigger a refresh
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Return to encode error', err);
+      await Swal.fire('Error', 'Failed to update status', 'error');
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -181,6 +220,17 @@ export default function TransmittalProcessTab({
                       <div className="flex items-center justify-end gap-1.5">
                         <button onClick={(e) => { e.stopPropagation(); onEdit(t, 'process'); }} className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors" aria-label={`Edit transmittal ${t._id}`} title="Edit"><Edit size={16} /></button>
                         <button onClick={(e) => { e.stopPropagation(); onDelete(t._id); }} className="p-1.5 rounded-md hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors" aria-label={`Delete transmittal ${t._id}`} title="Delete"><Trash2 size={16} /></button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReturnToEncode(t._id);
+                          }}
+                          className="p-1.5 rounded-md hover:bg-orange-100 text-orange-600 hover:text-orange-700 transition-colors"
+                          aria-label={`Return transmittal ${t._id} to Encode`}
+                          title="Return to Encode"
+                        >
+                          <ArrowLeft size={16} />
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

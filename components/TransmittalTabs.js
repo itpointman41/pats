@@ -8,11 +8,11 @@ import FTWModal from './FTWModal';
 import DeploymentEditModal from './DeploymentEditModal';
 import PaginationControls from "./PaginationControls";
 import Swal from 'sweetalert2';
-import { Edit, Trash2, CircleCheckBig } from 'lucide-react';
+import { Edit, Trash2, CircleCheckBig, ArrowLeft } from 'lucide-react';
 
 const DEPLOYMENT_REFRESH_INTERVAL = 20000; // 20 seconds
 
-export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW, pageSize = 10, canManage = false }) {
+export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW, pageSize = 10, canManage = false, onRefresh }) {
   const [active, setActive] = useState("pending");
   // Track single expanded cell as a key 'id:field' so only one cell is expanded at a time
   const [expandedKey, setExpandedKey] = useState(null);
@@ -204,6 +204,39 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
     await fetchDepTransmittals();
   };
 
+  const handleReturnToProcess = async (id) => {
+    if (!canManage) return;
+    const result = await Swal.fire({
+      title: 'Return to Process?',
+      text: 'This will change the transmittal status from Deployment back to Process.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, return to Process',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch('/api/admin/transmittals', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ _id: id, status: 'process' })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        await Swal.fire('Error', data.error || 'Failed to update status', 'error');
+        return;
+      }
+      await Swal.fire('Updated', 'Transmittal returned to Process.', 'success');
+      await fetchDepTransmittals();
+    } catch (err) {
+      console.error('Return to process error', err);
+      await Swal.fire('Error', 'Failed to update status', 'error');
+    }
+  };
+
   const paginate = (items, page) => {
     const start = (page - 1) * pageSize;
     return items.slice(start, start + pageSize);
@@ -390,6 +423,7 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
           onFTW={onFTW}
           pageSize={pageSize}
           canManage={canManage}
+          onRefresh={onRefresh || (() => window.location.reload())}
         />
       )}
       {active === 'process' && (
@@ -400,6 +434,7 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
           onFTW={onFTW}
           pageSize={pageSize}
           canManage={canManage}
+          onRefresh={onRefresh || (() => window.location.reload())}
         />
       )}
 
@@ -473,9 +508,14 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
                                 <button onClick={() => openDepEditModal(t)} className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors" aria-label={`Edit transmittal ${t._id}`} title="Edit"><Edit size={16} /></button>
                                 <button onClick={() => onDelete(t._id)} className="p-1.5 rounded-md hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors" aria-label={`Delete transmittal ${t._id}`} title="Delete"><Trash2 size={16} /></button>
                                 {(t.status || '') === 'deployment' && (
-                                  <button onClick={() => handleMarkDeployed(t._id)} className="p-1.5 rounded-md hover:bg-indigo-100 text-indigo-600 hover:text-indigo-700 transition-colors" aria-label={`Mark transmittal ${t._id} as deployed`} title="Mark Deployed">
-                                    <CircleCheckBig size={16} />
-                                  </button>
+                                  <>
+                                    <button onClick={() => handleReturnToProcess(t._id)} className="p-1.5 rounded-md hover:bg-orange-100 text-orange-600 hover:text-orange-700 transition-colors" aria-label={`Return transmittal ${t._id} to Process`} title="Return to Process">
+                                      <ArrowLeft size={16} />
+                                    </button>
+                                    <button onClick={() => handleMarkDeployed(t._id)} className="p-1.5 rounded-md hover:bg-indigo-100 text-indigo-600 hover:text-indigo-700 transition-colors" aria-label={`Mark transmittal ${t._id} as deployed`} title="Mark Deployed">
+                                      <CircleCheckBig size={16} />
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </td>

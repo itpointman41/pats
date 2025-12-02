@@ -221,6 +221,7 @@ export default function TransmittalManagementPage() {
             pageSize={pageSize}
             onFTW={handleFTWUpdate}
             canManage={canManageTransmittals}
+            onRefresh={loadTransmittals}
           />
         </div>
       </div>
