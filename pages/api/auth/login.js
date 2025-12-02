@@ -25,9 +25,18 @@ export default async function handler(req, res) {
         code: dbError.code,
         name: dbError.name
       });
+      
+      // Return detailed error for debugging (temporarily show in production too)
       return res.status(500).json({ 
         error: 'Database connection failed',
-        details: process.env.NODE_ENV === 'development' ? dbError.message : 'Unable to connect to database. Please check server logs.'
+        message: dbError.message,
+        code: dbError.code,
+        name: dbError.name,
+        hint: dbError.code === 'ENOTFOUND' ? 'Check MongoDB Atlas network access/IP whitelist' :
+              dbError.code === 'ETIMEDOUT' ? 'Connection timeout - check network/firewall' :
+              dbError.message?.includes('authentication') ? 'Check MongoDB username/password' :
+              dbError.message?.includes('MONGODB_URI') ? 'MONGODB_URI environment variable not set' :
+              'Check Vercel logs for full error details'
       });
     }
     const users = db.collection('users');
