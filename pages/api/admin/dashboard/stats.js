@@ -51,6 +51,17 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    // Add simple caching (5 seconds) to reduce database load
+    const cacheKey = 'dashboard-stats';
+    const cache = global.dashboardCache || {};
+    const now = Date.now();
+    
+    if (cache[cacheKey] && (now - cache[cacheKey].timestamp < 5000)) {
+      // Set cache headers
+      res.setHeader('Cache-Control', 'public, s-maxage=5, stale-while-revalidate=10');
+      return res.status(200).json(cache[cacheKey].data);
+    }
+
     const db = await getDb();
     const applicants = db.collection('applicants');
     const transmittals = db.collection('transmittals');
@@ -211,7 +222,7 @@ export default async function handler(req, res) {
       }));
     };
 
-    return res.status(200).json({
+    const responseData = {
       totals: {
         applicants: totalApplicants,
         transmittals: totalTransmittals,
@@ -226,7 +237,19 @@ export default async function handler(req, res) {
         applicants: recentApplicants,
         deployments: recentDeployments
       }
-    });
+    };
+
+    // Cache the response
+    if (!global.dashboardCache) global.dashboardCache = {};
+    global.dashboardCache[cacheKey] = {
+      data: responseData,
+      timestamp: now
+    };
+
+    // Set cache headers
+    res.setHeader('Cache-Control', 'public, s-maxage=5, stale-while-revalidate=10');
+    
+    return res.status(200).json(responseData);
   } catch (error) {
     console.error('Dashboard stats API error:', error);
     return res.status(500).json({ error: 'Internal server error' });

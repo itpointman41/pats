@@ -68,7 +68,29 @@ export default async function handler(req, res) {
         });
       }
 
-      const allApplicants = await applicants.find({}).toArray();
+      // Add pagination support
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 1000; // Default to 1000, can be increased
+      const skip = (page - 1) * limit;
+
+      // Use projection to only fetch needed fields
+      const projection = {
+        _id: 1,
+        name: 1,
+        position: 1,
+        company: 1,
+        companyId: 1,
+        ro: 1,
+        phoneNumber: 1,
+        createdAt: 1
+      };
+
+      // Get total count and data in parallel
+      const [totalCount, allApplicants] = await Promise.all([
+        applicants.countDocuments({}),
+        applicants.find({}, { projection }).skip(skip).limit(limit).sort({ createdAt: -1 }).toArray()
+      ]);
+
       const applicantsList = allApplicants.map(applicant => ({
         _id: applicant._id.toString(),
         name: applicant.name || '',
@@ -79,7 +101,16 @@ export default async function handler(req, res) {
         phoneNumber: applicant.phoneNumber || '',
         createdAt: applicant.createdAt
       }));
-      return res.status(200).json({ applicants: applicantsList });
+      
+      return res.status(200).json({ 
+        applicants: applicantsList,
+        pagination: {
+          total: totalCount,
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit)
+        }
+      });
     }
 
     // POST - Create new applicant

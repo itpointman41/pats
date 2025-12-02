@@ -46,7 +46,16 @@ export default async function handler(req, res) {
 
     // GET - List all companies
     if (req.method === 'GET') {
-      const found = await companies.find({}).toArray();
+      // Add pagination support
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 1000;
+      const skip = (page - 1) * limit;
+
+      // Get total count and data in parallel
+      const [totalCount, found] = await Promise.all([
+        companies.countDocuments({}),
+        companies.find({}).skip(skip).limit(limit).sort({ companyName: 1 }).toArray()
+      ]);
 
       const companiesList = found.map((company) => ({
         _id: company._id.toString(),
@@ -56,7 +65,15 @@ export default async function handler(req, res) {
         dateExpiry: company.dateExpiry || null
       }));
 
-      return res.status(200).json({ companies: companiesList });
+      return res.status(200).json({ 
+        companies: companiesList,
+        pagination: {
+          total: totalCount,
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit)
+        }
+      });
     }
 
     // POST - Create new company

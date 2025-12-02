@@ -52,33 +52,45 @@ export default async function handler(req, res) {
     // GET - List all transmittals with applicant names OR filter by applicantId
     if (req.method === 'GET') {
       const { applicantId } = req.query || {};
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 1000;
+      const skip = (page - 1) * limit;
+
       let query = {};
       if (applicantId) {
         query.applicantId = applicantId;
       }
 
-      const found = await transmittals.find(query).toArray();
-
-      // Fetch applicant names for each transmittal
-      const transmittalsList = await Promise.all(
-        found.map(async (transmittal) => {
-          let applicantName = '';
-          let applicantObj = null;
-          if (transmittal.applicantId) {
-            try {
-              const applicant = await applicants.findOne({ 
-                _id: new ObjectId(transmittal.applicantId) 
-              });
-              applicantName = applicant ? applicant.name : '';
-              if (applicant) {
-                applicantObj = { ...applicant, _id: applicant._id.toString() };
-              }
-            } catch (err) {
-              console.error('Error fetching applicant:', err);
-            }
+      // Use aggregation with $lookup to join applicants in one query (much faster)
+      const pipeline = [
+        { $match: query },
+        {
+          $lookup: {
+            from: 'applicants',
+            localField: 'applicantId',
+            foreignField: '_id',
+            as: 'applicant'
           }
+        },
+        { $unwind: { path: '$applicant', preserveNullAndEmptyArrays: true } },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit }
+      ];
 
-          return {
+      // Get total count and data in parallel
+      const [totalCount, found] = await Promise.all([
+        transmittals.countDocuments(query),
+        transmittals.aggregate(pipeline).toArray()
+      ]);
+
+      // Map results (applicant data is already joined)
+      const transmittalsList = found.map((transmittal) => {
+        const applicant = transmittal.applicant || null;
+        const applicantName = applicant ? applicant.name : '';
+        const applicantObj = applicant ? { ...applicant, _id: applicant._id.toString() } : null;
+
+        return {
             _id: transmittal._id.toString(),
             applicantId: transmittal.applicantId || '',
             applicantName: applicantName,
@@ -108,10 +120,17 @@ export default async function handler(req, res) {
             status: transmittal.status || 'pending',
             createdAt: transmittal.createdAt
           };
-        })
-      );
+        });
 
-      return res.status(200).json({ transmittals: transmittalsList });
+      return res.status(200).json({ 
+        transmittals: transmittalsList,
+        pagination: {
+          total: totalCount,
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit)
+        }
+      });
     }
 
     // POST - Create new transmittal

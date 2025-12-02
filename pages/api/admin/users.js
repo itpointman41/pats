@@ -83,10 +83,41 @@ export default async function handler(req, res) {
 
     // GET - List all users
     if (req.method === 'GET') {
-      // Update inactive users before fetching
-      await updateInactiveUsers();
+      // Update inactive users before fetching (only run once per minute to avoid performance hit)
+      const lastUpdate = global.lastInactiveUpdate || 0;
+      const now = Date.now();
+      if (now - lastUpdate > 60000) { // Only update once per minute
+        updateInactiveUsers().catch(console.error);
+        global.lastInactiveUpdate = now;
+      }
       
-      const allUsers = await users.find({}).toArray();
+      // Add pagination support
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 1000;
+      const skip = (page - 1) * limit;
+
+      // Use projection to exclude password
+      const projection = {
+        _id: 1,
+        username: 1,
+        firstName: 1,
+        lastName: 1,
+        email: 1,
+        phoneNumber: 1,
+        role: 1,
+        status: 1,
+        lastLogin: 1,
+        createdBy: 1,
+        profilePicture: 1,
+        createdAt: 1
+      };
+
+      // Get total count and data in parallel
+      const [totalCount, allUsers] = await Promise.all([
+        users.countDocuments({}),
+        users.find({}, { projection }).skip(skip).limit(limit).sort({ createdAt: -1 }).toArray()
+      ]);
+
       const usersList = allUsers.map(user => ({
         _id: user._id.toString(),
         username: user.username,
@@ -101,7 +132,16 @@ export default async function handler(req, res) {
         profilePicture: user.profilePicture || '',
         createdAt: user.createdAt
       }));
-      return res.status(200).json({ users: usersList });
+      
+      return res.status(200).json({ 
+        users: usersList,
+        pagination: {
+          total: totalCount,
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit)
+        }
+      });
     }
 
     // POST - Create new user
