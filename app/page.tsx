@@ -47,7 +47,19 @@ export default function LoginPage() {
         if (response.ok) {
           router.push("/dashboard");
         } else {
-          setError(data.error || "Login failed");
+          // Display detailed error message including hints
+          let errorMsg = data.error || "Login failed";
+          if (data.message) {
+            errorMsg += `: ${data.message}`;
+          }
+          if (data.hint) {
+            errorMsg += ` (${data.hint})`;
+          }
+          if (data.code) {
+            console.error('Error code:', data.code);
+          }
+          setError(errorMsg);
+          console.error('Login error details:', data);
         }
       } else {
         // Handle non-JSON responses (like HTML error pages)
