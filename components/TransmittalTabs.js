@@ -30,7 +30,8 @@ export default function TransmittalTabs({
     }
   }, [activeTab, active]);
 
-  const pendingData = data?.pending || { items: [], total: 0, page: 1, loading: false, error: null };
+  const pendingData =
+    data?.pending || { items: [], total: 0, page: 1, loading: false, error: null };
   const encodeData = data?.encode || { items: [], total: 0, page: 1, loading: false, error: null };
   const processData = data?.process || { items: [], total: 0, page: 1, loading: false, error: null };
   const deploymentData = data?.deployment || { items: [], total: 0, page: 1, loading: false, error: null };
@@ -283,7 +284,13 @@ export default function TransmittalTabs({
                     <td colSpan={canManage ? 9 : 8} className="px-3 py-2.5 text-center text-gray-500 text-xs">No pending transmittals</td>
                   </tr>
                 ) : (
-                  pendingItems.map((transmittal, idx) => {
+                  [...pendingItems]
+                    .sort((a, b) => {
+                      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                      return dateB - dateA; // Newest first
+                    })
+                    .map((transmittal, idx) => {
                     const expirationDate = transmittal.medicalExpiration ? new Date(transmittal.medicalExpiration) : null;
                     const isExpired = expirationDate && !isNaN(expirationDate.getTime()) && expirationDate < new Date();
                     const medicalDateClasses = `px-3 py-2.5 align-top ${isExpired ? 'bg-red-500 text-white rounded-lg' : ''}`;

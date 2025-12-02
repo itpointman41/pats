@@ -79,14 +79,17 @@ export default function TransmittalManagementPage() {
 
   const fetchTabData = useCallback(
     async (status, pageNumber = 1, silent = false) => {
-      setTabData((prev) => ({
-        ...prev,
-        [status]: {
-          ...prev[status],
-          loading: true,
-          error: null
-        }
-      }));
+      // Only show the tab-level loading state for non-silent (user-visible) loads.
+      if (!silent) {
+        setTabData((prev) => ({
+          ...prev,
+          [status]: {
+            ...prev[status],
+            loading: true,
+            error: null
+          }
+        }));
+      }
 
       try {
         const effectiveLimit =
