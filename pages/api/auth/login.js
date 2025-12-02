@@ -53,25 +53,35 @@ export default async function handler(req, res) {
       role: user.role || 'staff'
     });
   } catch (error) {
-    console.error('Login error:', error);
+    // Log full error details for debugging
+    console.error('Login error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
     
     // Check if it's a MongoDB connection error
-    if (error.message && error.message.includes('MONGODB_URI')) {
+    if (error.message && (error.message.includes('MONGODB_URI') || error.message.includes('Database connection failed'))) {
       return res.status(500).json({ 
-        error: 'Database configuration error. Please contact the administrator.',
+        error: 'Database connection error. Please contact the administrator.',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
     
-    // Check if it's a database connection error
-    if (error.message && error.message.includes('Database connection failed')) {
+    // Check for MongoDB-specific error codes
+    if (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
       return res.status(500).json({ 
-        error: 'Unable to connect to database. Please contact the administrator.',
+        error: 'Unable to connect to database server. Please contact the administrator.',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
     
-    res.status(500).json({ error: 'Internal server error' });
+    // Return error with more details in development
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }
 
