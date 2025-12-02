@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import NavBarAdmin from "../../components/nav_bar_admin";
 import TableFilterBar from "../../components/TableFilterBar";
 import TransmittalModal from "../../components/TransmittalModal";
 import {
-  loadTransmittals as loadTransmittalsAPI,
   deleteTransmittal as deleteTransmittalAPI,
   submitTransmittal as submitTransmittalAPI,
-  filterTransmittals,
   getInitialFormData,
   getTransmittalFormData
 } from "./handlers";
@@ -22,9 +20,17 @@ import { usePermissions } from "../../hooks/usePermissions";
 const TRANSMITTAL_REFRESH_INTERVAL = 15000; // 15 seconds
 const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
 const RESOURCE_KEY = 'transmittals';
+const TAB_KEYS = ['pending', 'encode', 'process', 'deployment'];
+
+const createInitialTabState = () =>
+  TAB_KEYS.reduce((acc, status) => {
+    acc[status] = { items: [], total: 0, page: 1, loading: false, error: null };
+    return acc;
+  }, {});
 
 export default function TransmittalManagementPage() {
-  const [transmittals, setTransmittals] = useState([]);
+  const [tabData, setTabData] = useState(() => createInitialTabState());
+  const [activeTab, setActiveTab] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -37,13 +43,114 @@ export default function TransmittalManagementPage() {
   const { permissions: permissionMap, loading: permsLoading, canRead, canWrite } = usePermissions();
   const canViewTransmittals = canRead(RESOURCE_KEY);
   const canManageTransmittals = canWrite(RESOURCE_KEY);
+  const activeTabRef = useRef(activeTab);
+  const tabDataRef = useRef(tabData);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    tabDataRef.current = tabData;
+  }, [tabData]);
+
+  const handleTabChange = (status) => {
+    setActiveTab(status);
+  };
+
+  const handlePageChange = (status, pageNumber) => {
+    setTabData((prev) => ({
+      ...prev,
+      [status]: {
+        ...prev[status],
+        page: pageNumber
+      }
+    }));
+    if (status === activeTab) {
+      setLoading(true);
+    }
+    fetchTabData(status, pageNumber);
+  };
+
+  const refreshStatus = useCallback(
+    (status) => {
+      const currentPage = tabDataRef.current[status]?.page || 1;
+      fetchTabData(status, currentPage);
+    },
+    [fetchTabData]
+  );
+
+  const refreshActiveTab = useCallback(() => {
+    refreshStatus(activeTabRef.current);
+  }, [refreshStatus]);
 
   // Form state
   const [formData, setFormData] = useState(getInitialFormData());
   const [editingMode, setEditingMode] = useState("pending");
 
+  const fetchTabData = useCallback(
+    async (status, pageNumber = 1, silent = false) => {
+      setTabData((prev) => ({
+        ...prev,
+        [status]: {
+          ...prev[status],
+          loading: true,
+          error: null
+        }
+      }));
+
+      try {
+        const effectiveLimit = (status === 'pending' || status === 'deployment') ? pageSize : 500;
+        const params = new URLSearchParams({
+          status,
+          page: pageNumber.toString(),
+          limit: effectiveLimit.toString()
+        });
+
+        if (searchTerm) {
+          params.append('search', searchTerm);
+        }
+
+        const res = await fetch(`/api/admin/transmittals?${params.toString()}`, {
+          credentials: 'include'
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to load transmittals');
+        }
+
+        setTabData((prev) => ({
+          ...prev,
+          [status]: {
+            ...prev[status],
+            items: data.transmittals || [],
+            total: data.pagination?.total ?? data.transmittals?.length ?? 0,
+            page: data.pagination?.page ?? pageNumber,
+            loading: false,
+            error: null
+          }
+        }));
+      } catch (err) {
+        setTabData((prev) => ({
+          ...prev,
+          [status]: {
+            ...prev[status],
+            loading: false,
+            error: err.message || 'Failed to load transmittals'
+          }
+        }));
+        setError(err.message || 'Failed to load transmittals');
+      } finally {
+        if (!silent && status === activeTabRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [pageSize, searchTerm]
+  );
+
   useEffect(() => {
-    // Get current user info
     fetch("/api/auth/check", {
       credentials: 'include'
     })
@@ -54,26 +161,43 @@ export default function TransmittalManagementPage() {
           router.push("/");
         } else {
           setCurrentUser(data);
-          loadTransmittals();
+          setLoading(true);
+          fetchTabData('pending', 1);
         }
       })
       .catch(() => {
         setAuthLoading(false);
         router.push("/");
       });
-  }, [router]);
+  }, [router, fetchTabData]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !canViewTransmittals) return;
     const interval = setInterval(() => {
-      loadTransmittals();
+      const status = activeTabRef.current;
+      const currentPage = tabDataRef.current[status]?.page || 1;
+      fetchTabData(status, currentPage, true);
     }, TRANSMITTAL_REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser, canViewTransmittals, fetchTabData]);
 
-  const loadTransmittals = () => {
-    loadTransmittalsAPI(setTransmittals, setError, setLoading);
-  };
+  useEffect(() => {
+    if (!currentUser || !canViewTransmittals) return;
+    setTabData(createInitialTabState());
+    setLoading(true);
+    fetchTabData(activeTabRef.current, 1);
+  }, [searchTerm, pageSize, currentUser, canViewTransmittals, fetchTabData]);
+
+  useEffect(() => {
+    if (!currentUser || !canViewTransmittals) return;
+    const current = tabData[activeTab];
+    if (!current.items.length && !current.loading) {
+      setLoading(true);
+      fetchTabData(activeTab, current.page || 1);
+    } else {
+      setLoading(false);
+    }
+  }, [activeTab, tabData, currentUser, canViewTransmittals, fetchTabData]);
 
   const handleCreate = () => {
     if (!canManageTransmittals) return;
@@ -96,7 +220,7 @@ export default function TransmittalManagementPage() {
     if (!canManageTransmittals) return;
     deleteTransmittalAPI(
       transmittalId,
-      () => loadTransmittals(),
+      () => refreshActiveTab(),
       (error) => Swal.fire('Error', error || 'Failed to delete transmittal', 'error')
     );
   };
@@ -113,7 +237,9 @@ export default function TransmittalManagementPage() {
       () => {
         setShowModal(false);
         setError("");
-        loadTransmittals();
+        const targetStatus = editingMode || activeTabRef.current;
+        refreshStatus(targetStatus);
+        refreshActiveTab();
       },
       (error) => setError(error)
     );
@@ -127,10 +253,18 @@ export default function TransmittalManagementPage() {
   const handleFTWUpdate = (id, updates) => {
     if (!canManageTransmittals) return;
     const body = updates || { status: 'encode', findings: 'FTW' };
-    updateTransmittalStatus(id, body, () => loadTransmittals(), (err) => Swal.fire('Error', err || 'Failed to update', 'error'));
+    updateTransmittalStatus(
+      id,
+      body,
+      () => {
+        refreshActiveTab();
+        if (body.status) {
+          refreshStatus(body.status);
+        }
+      },
+      (err) => Swal.fire('Error', err || 'Failed to update', 'error')
+    );
   };
-
-  const filteredTransmittals = filterTransmittals(transmittals, searchTerm);
 
   const handlePageSizeChange = (event) => {
     setPageSize(Number(event.target.value));
@@ -211,19 +345,21 @@ export default function TransmittalManagementPage() {
               {error}
             </div>
           )}
-          {loading ? (
+          {loading && (
             <div className="text-sm text-[var(--color-text-muted)]">Loading transmittals…</div>
-          ) : (
-            <TransmittalTabs
-              transmittals={filteredTransmittals}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              pageSize={pageSize}
-              onFTW={handleFTWUpdate}
-              canManage={canManageTransmittals}
-              onRefresh={loadTransmittals}
-            />
           )}
+          <TransmittalTabs
+            data={tabData}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            onPageChange={handlePageChange}
+            onRefreshStatus={refreshStatus}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onFTW={handleFTWUpdate}
+            pageSize={pageSize}
+            canManage={canManageTransmittals}
+          />
         </div>
       </div>
 

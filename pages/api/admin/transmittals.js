@@ -51,37 +51,44 @@ export default async function handler(req, res) {
 
     // GET - List all transmittals with applicant names OR filter by applicantId
     if (req.method === 'GET') {
-      const { applicantId } = req.query || {};
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 1000;
-      const skip = (page - 1) * limit;
+      const {
+        applicantId,
+        status,
+        search = '',
+        page = 1,
+        limit: limitParam
+      } = req.query || {};
 
-      let query = {};
+      const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
+      const requestedLimit = limitParam !== undefined ? parseInt(limitParam, 10) : NaN;
+      const baseLimit = Number.isNaN(requestedLimit)
+        ? (applicantId ? 500 : 25)
+        : requestedLimit;
+      const parsedLimit = Math.min(Math.max(baseLimit, 1), 500);
+      const skip = (parsedPage - 1) * parsedLimit;
+
+      const matchStage = {};
       if (applicantId) {
-        query.applicantId = applicantId;
+        matchStage.applicantId = applicantId;
+      }
+      if (status) {
+        matchStage.status = status;
       }
 
-      // Use aggregation with $lookup to join applicants in one query (much faster)
-      const pipeline = [
-        { $match: query },
+      const lookupPipeline = [
+        {
+          $match: matchStage
+        },
         {
           $lookup: {
             from: 'applicants',
             let: {
               applicantIdStr: {
-                $switch: {
-                  branches: [
-                    {
-                      case: { $eq: [{ $type: '$applicantId' }, 'objectId'] },
-                      then: { $toString: '$applicantId' }
-                    },
-                    {
-                      case: { $eq: [{ $type: '$applicantId' }, 'string'] },
-                      then: '$applicantId'
-                    }
-                  ],
-                  default: null
-                }
+                $cond: [
+                  { $eq: [{ $type: '$applicantId' }, 'objectId'] },
+                  { $toString: '$applicantId' },
+                  '$applicantId'
+                ]
               }
             },
             pipeline: [
@@ -94,77 +101,122 @@ export default async function handler(req, res) {
                     ]
                   }
                 }
+              },
+              {
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  company: 1,
+                  position: 1,
+                  ro: 1
+                }
               }
             ],
             as: 'applicant'
           }
         },
         { $unwind: { path: '$applicant', preserveNullAndEmptyArrays: true } },
-        { $sort: { createdAt: -1 } },
-        { $skip: skip },
-        { $limit: limit }
+        {
+          $addFields: {
+            resolvedApplicantId: {
+              $cond: [
+                { $eq: [{ $type: '$applicantId' }, 'objectId'] },
+                { $toString: '$applicantId' },
+                '$applicantId'
+              ]
+            },
+            resolvedApplicantName: { $ifNull: ['$applicant.name', '$applicantName'] },
+            resolvedCompany: { $ifNull: ['$company', '$applicant.company'] },
+            resolvedVisaCompany: '$visaCompany'
+          }
+        }
       ];
 
-      // Get total count and data in parallel
-      const [totalCount, found] = await Promise.all([
-        transmittals.countDocuments(query),
-        transmittals.aggregate(pipeline).toArray()
-      ]);
-
-      // Map results (applicant data is already joined)
-      const transmittalsList = found.map((transmittal) => {
-        const applicant = transmittal.applicant || null;
-        const applicantName = applicant ? applicant.name : '';
-        const applicantObj = applicant
-          ? {
-              ...applicant,
-              _id: applicant._id?.toString ? applicant._id.toString() : applicant._id
-            }
-          : null;
-        const applicantId =
-          typeof transmittal.applicantId === 'object' && transmittal.applicantId?.toString
-            ? transmittal.applicantId.toString()
-            : transmittal.applicantId || (applicant?._id ?? '');
-
-        return {
-            _id: transmittal._id.toString(),
-          applicantId,
-            applicantName: applicantName,
-            applicant: applicantObj,
-            visaCompany: transmittal.visaCompany || '',
-            company: transmittal.company || '',
-            visaPosition: transmittal.visaPosition || '',
-            position: transmittal.position || '',
-            passportNos: transmittal.passportNos || '',
-            visaNo: transmittal.visaNo || transmittal.sponsorNo || transmittal.visa_number || '',
-            medicalCert: transmittal.medicalCert || false,
-            vaccineCert: transmittal.vaccineCert || false,
-            dateOfEmedUploaded: transmittal.dateOfEmedUploaded || null,
-            deployedAt: transmittal.deployedAt || null,
-            dateOfMedical: transmittal.dateOfMedical || null,
-            medicalExpiration: transmittal.medicalExpiration || null,
-            findings: transmittal.findings || '',
-            clinicRemarks: transmittal.clinicRemarks || '',
-            clinic: transmittal.clinic || '',
-            payment: transmittal.payment || '',
-            remarks: transmittal.remarks || '',
-            biometric: transmittal.biometric || false,
-            stampVisa: transmittal.stampVisa || false,
-            dateOfInsurance: transmittal.dateOfInsurance || null,
-            waiver: transmittal.waiver || false,
-            remed: transmittal.remed || false,
-            status: transmittal.status || 'pending',
-            createdAt: transmittal.createdAt
-          };
+      if (search) {
+        const regex = new RegExp(search, 'i');
+        lookupPipeline.push({
+          $match: {
+            $or: [
+              { resolvedApplicantName: regex },
+              { resolvedCompany: regex },
+              { resolvedVisaCompany: regex },
+              { remarks: regex },
+              { clinicRemarks: regex },
+              { visaNo: regex },
+              { passportNos: regex }
+            ]
+          }
         });
+      }
 
-      return res.status(200).json({ 
-        transmittals: transmittalsList,
+      const facetPipeline = [
+        ...lookupPipeline,
+        {
+          $facet: {
+            data: [
+              { $sort: { createdAt: -1 } },
+              { $skip: skip },
+              { $limit: parsedLimit }
+            ],
+            totalCount: [
+              { $count: 'count' }
+            ]
+          }
+        }
+      ];
+
+      const aggregateResult = await transmittals.aggregate(facetPipeline).toArray();
+      const payload = aggregateResult[0] || {};
+      const resultData = payload.data || [];
+      const totalCount = payload.totalCount?.[0]?.count || 0;
+
+      const formatted = resultData.map((transmittal) => {
+        const applicant = transmittal.applicant || null;
+        const applicantIdValue = transmittal.resolvedApplicantId || (applicant?._id?.toString?.() ?? '');
+        return {
+          _id: transmittal._id.toString(),
+          applicantId: applicantIdValue,
+          applicantName: transmittal.resolvedApplicantName || '',
+          applicant: applicant
+            ? {
+                ...applicant,
+                _id: applicant._id?.toString ? applicant._id.toString() : applicant._id
+              }
+            : null,
+          visaCompany: transmittal.visaCompany || '',
+          company: transmittal.company || '',
+          visaPosition: transmittal.visaPosition || '',
+          position: transmittal.position || '',
+          passportNos: transmittal.passportNos || '',
+          visaNo: transmittal.visaNo || transmittal.sponsorNo || transmittal.visa_number || '',
+          medicalCert: transmittal.medicalCert || false,
+          vaccineCert: transmittal.vaccineCert || false,
+          dateOfEmedUploaded: transmittal.dateOfEmedUploaded || null,
+          deployedAt: transmittal.deployedAt || null,
+          dateOfMedical: transmittal.dateOfMedical || null,
+          medicalExpiration: transmittal.medicalExpiration || null,
+          findings: transmittal.findings || '',
+          clinicRemarks: transmittal.clinicRemarks || '',
+          clinic: transmittal.clinic || '',
+          payment: transmittal.payment || '',
+          remarks: transmittal.remarks || '',
+          biometric: transmittal.biometric || false,
+          stampVisa: transmittal.stampVisa || false,
+          dateOfInsurance: transmittal.dateOfInsurance || null,
+          waiver: transmittal.waiver || false,
+          remed: transmittal.remed || false,
+          status: transmittal.status || 'pending',
+          createdAt: transmittal.createdAt
+        };
+      });
+
+      return res.status(200).json({
+        transmittals: formatted,
         pagination: {
           total: totalCount,
-          page,
-          limit,
-          totalPages: Math.ceil(totalCount / limit)
+          page: parsedPage,
+          limit: parsedLimit,
+          totalPages: Math.ceil(totalCount / parsedLimit)
         }
       });
     }

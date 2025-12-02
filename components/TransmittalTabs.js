@@ -10,10 +10,37 @@ import PaginationControls from "./PaginationControls";
 import Swal from 'sweetalert2';
 import { Edit, Trash2, CircleCheckBig, ArrowLeft } from 'lucide-react';
 
-const DEPLOYMENT_REFRESH_INTERVAL = 20000; // 20 seconds
+export default function TransmittalTabs({
+  data,
+  activeTab,
+  onTabChange,
+  onPageChange,
+  onRefreshStatus,
+  onEdit,
+  onDelete,
+  onFTW,
+  pageSize = 10,
+  canManage = false
+}) {
+  const [active, setActive] = useState(activeTab || "pending");
 
-export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW, pageSize = 10, canManage = false, onRefresh }) {
-  const [active, setActive] = useState("pending");
+  useEffect(() => {
+    if (activeTab && activeTab !== active) {
+      setActive(activeTab);
+    }
+  }, [activeTab, active]);
+
+  const pendingData = data?.pending || { items: [], total: 0, page: 1, loading: false, error: null };
+  const encodeData = data?.encode || { items: [], total: 0, page: 1, loading: false, error: null };
+  const processData = data?.process || { items: [], total: 0, page: 1, loading: false, error: null };
+  const deploymentData = data?.deployment || { items: [], total: 0, page: 1, loading: false, error: null };
+
+  const pendingItems = pendingData.items || [];
+  const encodeItems = encodeData.items || [];
+  const processItems = processData.items || [];
+  const deploymentItems = deploymentData.items || [];
+  const depLoading = deploymentData.loading || false;
+  const depError = deploymentData.error || null;
   // Track single expanded cell as a key 'id:field' so only one cell is expanded at a time
   const [expandedKey, setExpandedKey] = useState(null);
   const [viewApplicant, setViewApplicant] = useState(null);
@@ -22,14 +49,14 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
   const [showFTWModal, setShowFTWModal] = useState(false);
 
   // Deployment-specific state
-  const [depTransmittals, setDepTransmittals] = useState([]);
   const [allDepTransmittals, setAllDepTransmittals] = useState([]);
-  const [depLoading, setDepLoading] = useState(true);
-  const [depError, setDepError] = useState(null);
   const [showDepEditModal, setShowDepEditModal] = useState(false);
   const [editingDepTransmittal, setEditingDepTransmittal] = useState(null);
-  const [pendingPage, setPendingPage] = useState(1);
-  const [deploymentPage, setDeploymentPage] = useState(1);
+
+  const handleTabSelect = (key) => {
+    setActive(key);
+    onTabChange && onTabChange(key);
+  };
 
   const toggleExpand = (id, field) => {
     const key = `${id}:${field}`;
@@ -45,23 +72,8 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
     return false;
   };
 
-  useEffect(() => {
-    // Debug: log first few transmittals to help inspect checkbox fields
-    if (transmittals && transmittals.length) {
-      console.debug('TransmittalTabs: sample transmittals', transmittals.slice(0,5));
-    }
-  }, [transmittals]);
-
-  const pending = transmittals.filter(t => (t.status || 'pending') === 'pending');
-  const encode = transmittals.filter(t => (t.status || '') === 'encode');
-
-  useEffect(() => {
-    setPendingPage(1);
-  }, [pending.length]);
-
-  useEffect(() => {
-    setDeploymentPage(1);
-  }, [depTransmittals.length]);
+  const pending = pendingItems;
+  const encode = encodeItems;
 
   const handleRowClick = async (transmittal) => {
     // If transmittal already contains embedded applicant object, use it.
@@ -111,42 +123,13 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
     setShowViewModal(true);
   };
 
-  const fetchDepTransmittals = useCallback(async (silent = false) => {
-    if (!silent) setDepLoading(true);
-    try {
-      const res = await fetch('/api/admin/transmittals', { credentials: 'include' });
-      const data = await res.json();
-      if (!res.ok) {
-        setDepError(data.error || 'Failed to load transmittals');
-        setDepTransmittals([]);
-        setAllDepTransmittals([]);
-      } else {
-        const deploymentOnly = (data.transmittals || []).filter(t => (t.status || '') === 'deployment');
-        setAllDepTransmittals(data.transmittals || []);
-        setDepTransmittals(deploymentOnly);
-        setDeploymentPage(1);
-      }
-    } catch (err) {
-      setDepError('Failed to load transmittals');
-      setDepTransmittals([]);
-      setAllDepTransmittals([]);
-    } finally {
-      setDepLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchDepTransmittals();
-  }, [fetchDepTransmittals]);
-
-  useEffect(() => {
-    const interval = setInterval(() => fetchDepTransmittals(true), DEPLOYMENT_REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchDepTransmittals]);
+    setAllDepTransmittals(deploymentItems);
+  }, [deploymentItems]);
 
   const handleMarkDeployed = async (id) => {
     if (!canManage) return;
-    const t = (allDepTransmittals || []).find(x => x._id === id) || (depTransmittals || []).find(x => x._id === id);
+    const t = (allDepTransmittals || []).find(x => x._id === id) || (deploymentItems || []).find(x => x._id === id);
     if (!t) {
       await Swal.fire('Error', 'Transmittal not found', 'error');
       return;
@@ -193,7 +176,7 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
         return;
       }
       await Swal.fire('Updated', 'Transmittal marked as deployed.', 'success');
-      await fetchDepTransmittals();
+      onRefreshStatus && onRefreshStatus('deployment');
     } catch (err) {
       console.error('Mark deployed error', err);
       await Swal.fire('Error', 'Failed to update status', 'error');
@@ -201,7 +184,7 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
   };
 
   const handleDeploymentSave = async () => {
-    await fetchDepTransmittals();
+    onRefreshStatus && onRefreshStatus('deployment');
   };
 
   const handleReturnToProcess = async (id) => {
@@ -230,38 +213,19 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
         return;
       }
       await Swal.fire('Updated', 'Transmittal returned to Process.', 'success');
-      await fetchDepTransmittals();
+      onRefreshStatus && onRefreshStatus('process');
+      onRefreshStatus && onRefreshStatus('deployment');
     } catch (err) {
       console.error('Return to process error', err);
       await Swal.fire('Error', 'Failed to update status', 'error');
     }
   };
 
-  const paginate = (items, page) => {
-    const start = (page - 1) * pageSize;
-    return items.slice(start, start + pageSize);
-  };
-
-  const sortedPending = [...pending].sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-    return dateB - dateA; // Newest first
-  });
-
-  const paginatedPending = paginate(sortedPending, pendingPage);
-
-  // Use parent-provided `transmittals` (already filtered by the global search) for deployment
-  const deploymentOnly = transmittals.filter(t => (t.status || '') === 'deployment');
-  const sortedDeployment = [...deploymentOnly].sort((a, b) => {
+  const sortedDeployment = [...deploymentItems].sort((a, b) => {
     const aDate = a.deployedAt || a.updatedAt || a.createdAt || 0;
     const bDate = b.deployedAt || b.updatedAt || b.createdAt || 0;
     return new Date(bDate) - new Date(aDate);
   });
-  const paginatedDeployment = paginate(sortedDeployment, deploymentPage);
-
-  useEffect(() => {
-    setDeploymentPage(1);
-  }, [sortedDeployment.length]);
 
   return (
     <div>
@@ -274,7 +238,7 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActive(tab.key)}
+            onClick={() => handleTabSelect(tab.key)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
               active === tab.key
                 ? 'bg-[var(--color-secondary)] text-white shadow-md'
@@ -308,12 +272,18 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {paginatedPending.length === 0 ? (
+                {pendingData.loading ? (
                   <tr>
-                    <td colSpan="9" className="px-3 py-2.5 text-center text-gray-500 text-xs">No pending transmittals</td>
+                    <td colSpan={canManage ? 9 : 8} className="px-3 py-2.5 text-center text-gray-500 text-xs">
+                      Loading pending transmittals...
+                    </td>
+                  </tr>
+                ) : pendingItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={canManage ? 9 : 8} className="px-3 py-2.5 text-center text-gray-500 text-xs">No pending transmittals</td>
                   </tr>
                 ) : (
-                  paginatedPending.map((transmittal, idx) => {
+                  pendingItems.map((transmittal, idx) => {
                     const expirationDate = transmittal.medicalExpiration ? new Date(transmittal.medicalExpiration) : null;
                     const isExpired = expirationDate && !isNaN(expirationDate.getTime()) && expirationDate < new Date();
                     const medicalDateClasses = `px-3 py-2.5 align-top ${isExpired ? 'bg-red-500 text-white rounded-lg' : ''}`;
@@ -406,9 +376,9 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
             </table>
           </div>
           <PaginationControls
-            currentPage={pendingPage}
-            onPageChange={setPendingPage}
-            totalItems={sortedPending.length}
+            currentPage={pendingData.page || 1}
+            onPageChange={(page) => onPageChange && onPageChange('pending', page)}
+            totalItems={pendingData.total ?? pendingItems.length}
             pageSize={pageSize}
             label="pending transmittals"
           />
@@ -417,24 +387,24 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
 
       {active === 'encode' && (
         <TransmittalEncodeTab
-          transmittals={encode}
+          transmittals={encodeItems}
           onEdit={onEdit}
           onDelete={onDelete}
           onFTW={onFTW}
           pageSize={pageSize}
           canManage={canManage}
-          onRefresh={onRefresh || (() => window.location.reload())}
+          onRefresh={() => onRefreshStatus && onRefreshStatus('encode')}
         />
       )}
       {active === 'process' && (
         <TransmittalProcessTab
-          transmittals={transmittals.filter(t => (t.status || '') === 'process')}
+          transmittals={processItems}
           onEdit={onEdit}
           onDelete={onDelete}
           onFTW={onFTW}
           pageSize={pageSize}
           canManage={canManage}
-          onRefresh={onRefresh || (() => window.location.reload())}
+          onRefresh={() => onRefreshStatus && onRefreshStatus('process')}
         />
       )}
 
@@ -463,12 +433,12 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {(paginatedDeployment.length === 0) ? (
+                    {(deploymentItems.length === 0) ? (
                       <tr>
                         <td colSpan="9" className="px-3 py-2.5 text-center text-gray-500 text-xs">No transmittals</td>
                       </tr>
                     ) : (
-                      paginatedDeployment.map((t, idx) => (
+                      deploymentItems.map((t, idx) => (
                         <tr key={t._id} className={`hover:bg-green-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                           <td className="px-3 py-2.5 align-top">
                             <button onClick={() => openApplicantFromDep(t)} className="text-left w-full font-semibold text-green-600 hover:text-green-800 cursor-pointer hover:underline transition-colors text-sm leading-tight">
@@ -527,9 +497,9 @@ export default function TransmittalTabs({ transmittals, onEdit, onDelete, onFTW,
                 </table>
               </div>
               <PaginationControls
-                currentPage={deploymentPage}
-                onPageChange={setDeploymentPage}
-                totalItems={sortedDeployment.length}
+                currentPage={deploymentData.page || 1}
+                onPageChange={(page) => onPageChange && onPageChange('deployment', page)}
+                totalItems={deploymentData.total ?? sortedDeployment.length}
                 pageSize={pageSize}
                 label="deployment records"
               />

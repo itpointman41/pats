@@ -1,17 +1,6 @@
 // Utility functions for transmittal management
 import Swal from 'sweetalert2';
 
-export const filterTransmittals = (transmittals, searchTerm) => {
-  return transmittals.filter(transmittal =>
-    (transmittal.applicantName && transmittal.applicantName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (transmittal.findings && transmittal.findings.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (transmittal.clinicRemarks && transmittal.clinicRemarks.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (transmittal.clinic && transmittal.clinic.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (transmittal.payment && transmittal.payment.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (transmittal.remarks && transmittal.remarks.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-};
-
 export const getInitialFormData = () => ({
   applicantId: "",
   dateOfMedical: "",
