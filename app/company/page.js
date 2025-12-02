@@ -126,7 +126,7 @@ export default function CompaniesManagementPage() {
     setPageSize(Number(event.target.value));
   };
 
-  if (authLoading || loading || permsLoading) {
+  if (authLoading || permsLoading) {
     return (
       <div className="min-h-screen bg-[var(--surface-muted)] flex items-center justify-center">
         <div className="text-[var(--color-text-muted)]">Loading...</div>
@@ -205,97 +205,100 @@ export default function CompaniesManagementPage() {
             </div>
           )}
 
-          {/* Companies Table */}
-          <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-300 bg-gray-50">
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Company Name</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">CRN</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date Approve</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date Expiry</th>
-                    {canManageCompanies && (
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {paginatedCompanies.length === 0 ? (
-                    <tr>
-                      <td colSpan={tableColumnCount} className="px-3 py-2.5 text-center text-gray-500 text-xs">No companies found</td>
+          {loading ? (
+            <div className="text-sm text-[var(--color-text-muted)]">Loading companies…</div>
+          ) : (
+            <div className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-300 bg-gray-50">
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Company Name</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">CRN</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date Approve</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date Expiry</th>
+                      {canManageCompanies && (
+                        <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                      )}
                     </tr>
-                  ) : (
-                    paginatedCompanies.map((company, idx) => (
-                      <tr key={company._id} className={`hover:bg-green-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                        <td className="px-3 py-2.5 align-top">
-                          <div className="text-xs font-semibold text-gray-900 leading-tight">
-                            {company.companyName || "—"}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <div className="text-xs text-gray-700 leading-tight font-mono">
-                            {company.crn || "—"}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className="text-gray-700 text-xs leading-tight">
-                            {company.dateApprove 
-                              ? new Date(company.dateApprove).toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric' 
-                                })
-                              : "—"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className="text-gray-700 text-xs leading-tight">
-                            {company.dateExpiry 
-                              ? new Date(company.dateExpiry).toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric' 
-                                })
-                              : "—"}
-                          </span>
-                        </td>
-                        {canManageCompanies && (
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {paginatedCompanies.length === 0 ? (
+                      <tr>
+                        <td colSpan={tableColumnCount} className="px-3 py-2.5 text-center text-gray-500 text-xs">No companies found</td>
+                      </tr>
+                    ) : (
+                      paginatedCompanies.map((company, idx) => (
+                        <tr key={company._id} className={`hover:bg-green-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                           <td className="px-3 py-2.5 align-top">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => handleEdit(company)}
-                                className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors"
-                                title="Edit"
-                                aria-label={`Edit ${company.companyName || company._id}`}
-                              >
-                                <Edit size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(company._id)}
-                                className="p-1.5 rounded-md hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors"
-                                title="Delete"
-                                aria-label={`Delete ${company.companyName || company._id}`}
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                            <div className="text-xs font-semibold text-gray-900 leading-tight">
+                              {company.companyName || "—"}
                             </div>
                           </td>
-                        )}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                          <td className="px-3 py-2.5 align-top">
+                            <div className="text-xs text-gray-700 leading-tight font-mono">
+                              {company.crn || "—"}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            <span className="text-gray-700 text-xs leading-tight">
+                              {company.dateApprove 
+                                ? new Date(company.dateApprove).toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    year: 'numeric' 
+                                  })
+                                : "—"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            <span className="text-gray-700 text-xs leading-tight">
+                              {company.dateExpiry 
+                                ? new Date(company.dateExpiry).toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    year: 'numeric' 
+                                  })
+                                : "—"}
+                            </span>
+                          </td>
+                          {canManageCompanies && (
+                            <td className="px-3 py-2.5 align-top">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleEdit(company)}
+                                  className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors"
+                                  title="Edit"
+                                  aria-label={`Edit ${company.companyName || company._id}`}
+                                >
+                                  <Edit size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(company._id)}
+                                  className="p-1.5 rounded-md hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors"
+                                  title="Delete"
+                                  aria-label={`Delete ${company.companyName || company._id}`}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationControls
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                totalItems={filteredCount}
+                pageSize={pageSize}
+                label="companies"
+              />
             </div>
-            <PaginationControls
-              currentPage={currentPage}
-              onPageChange={setCurrentPage}
-              totalItems={filteredCount}
-              pageSize={pageSize}
-              label="companies"
-            />
-          </div>
+          )}
         </div>
       </div>
 

@@ -67,8 +67,35 @@ export default async function handler(req, res) {
         {
           $lookup: {
             from: 'applicants',
-            localField: 'applicantId',
-            foreignField: '_id',
+            let: {
+              applicantIdStr: {
+                $switch: {
+                  branches: [
+                    {
+                      case: { $eq: [{ $type: '$applicantId' }, 'objectId'] },
+                      then: { $toString: '$applicantId' }
+                    },
+                    {
+                      case: { $eq: [{ $type: '$applicantId' }, 'string'] },
+                      then: '$applicantId'
+                    }
+                  ],
+                  default: null
+                }
+              }
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $ne: ['$$applicantIdStr', null] },
+                      { $eq: [{ $toString: '$_id' }, '$$applicantIdStr'] }
+                    ]
+                  }
+                }
+              }
+            ],
             as: 'applicant'
           }
         },
@@ -88,11 +115,20 @@ export default async function handler(req, res) {
       const transmittalsList = found.map((transmittal) => {
         const applicant = transmittal.applicant || null;
         const applicantName = applicant ? applicant.name : '';
-        const applicantObj = applicant ? { ...applicant, _id: applicant._id.toString() } : null;
+        const applicantObj = applicant
+          ? {
+              ...applicant,
+              _id: applicant._id?.toString ? applicant._id.toString() : applicant._id
+            }
+          : null;
+        const applicantId =
+          typeof transmittal.applicantId === 'object' && transmittal.applicantId?.toString
+            ? transmittal.applicantId.toString()
+            : transmittal.applicantId || (applicant?._id ?? '');
 
         return {
             _id: transmittal._id.toString(),
-            applicantId: transmittal.applicantId || '',
+          applicantId,
             applicantName: applicantName,
             applicant: applicantObj,
             visaCompany: transmittal.visaCompany || '',

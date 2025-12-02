@@ -182,7 +182,7 @@ export default function ApplicantsManagementPage() {
     </div>
   );
 
-  if (authLoading || loading || permsLoading) {
+  if (authLoading || permsLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-gray-600">Loading...</div>
@@ -239,92 +239,97 @@ export default function ApplicantsManagementPage() {
             </div>
           )}
 
-          {/* Applicants Table */}
-          <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-300 bg-gray-50">
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Position</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Company</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone Number</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">R.O.</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created At</th>
-                    <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredApplicants.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-3 py-2.5 text-center text-gray-500 text-xs">No applicants found</td>
-                    </tr>
-                  ) : (
-                    paginatedApplicants.map((user, idx) => (
-                      <tr
-                        key={user._id}
-                        className={`hover:bg-green-50/50 transition-colors cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
-                        onClick={() => handleRowClick(user)}
-                      >
-                        <td className="px-3 py-2.5 align-top">
-                          <span className="text-gray-900 text-xs leading-tight font-semibold">{user.name}</span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className="text-gray-900 text-xs leading-tight">{user.position || "—"}</span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className="text-gray-900 text-xs leading-tight">{user.company || "—"}</span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className="text-gray-900 text-xs leading-tight">{user.phoneNumber || "—"}</span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className="text-gray-900 text-xs leading-tight">{user.ro || "—"}</span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className="text-gray-700 text-xs leading-tight">
-                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          {canManageApplicants ? (
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleEdit(user); }}
-                                className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors"
-                                title="Edit"
-                                aria-label={`Edit ${user.name || user._id}`}
-                              >
-                                <Edit size={16} />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDelete(user._id); }}
-                                className="p-1.5 rounded-md hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors"
-                                title="Delete"
-                                aria-label={`Delete ${user.name || user._id}`}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-400 text-right">Read only</div>
-                          )}
-                        </td>
+          {loading ? (
+            <div className="text-sm text-gray-600">Loading applicants…</div>
+          ) : (
+            <>
+              <div className="card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-300 bg-gray-50">
+                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Position</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Company</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone Number</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">R.O.</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created At</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredApplicants.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-3 py-2.5 text-center text-gray-500 text-xs">No applicants found</td>
+                        </tr>
+                      ) : (
+                        paginatedApplicants.map((user, idx) => (
+                          <tr
+                            key={user._id}
+                            className={`hover:bg-green-50/50 transition-colors cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                            onClick={() => handleRowClick(user)}
+                          >
+                            <td className="px-3 py-2.5 align-top">
+                              <span className="text-gray-900 text-xs leading-tight font-semibold">{user.name}</span>
+                            </td>
+                            <td className="px-3 py-2.5 align-top">
+                              <span className="text-gray-900 text-xs leading-tight">{user.position || "—"}</span>
+                            </td>
+                            <td className="px-3 py-2.5 align-top">
+                              <span className="text-gray-900 text-xs leading-tight">{user.company || "—"}</span>
+                            </td>
+                            <td className="px-3 py-2.5 align-top">
+                              <span className="text-gray-900 text-xs leading-tight">{user.phoneNumber || "—"}</span>
+                            </td>
+                            <td className="px-3 py-2.5 align-top">
+                              <span className="text-gray-900 text-xs leading-tight">{user.ro || "—"}</span>
+                            </td>
+                            <td className="px-3 py-2.5 align-top">
+                              <span className="text-gray-700 text-xs leading-tight">
+                                {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5 align-top">
+                              {canManageApplicants ? (
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleEdit(user); }}
+                                    className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors"
+                                    title="Edit"
+                                    aria-label={`Edit ${user.name || user._id}`}
+                                  >
+                                    <Edit size={16} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(user._id); }}
+                                    className="p-1.5 rounded-md hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors"
+                                    title="Delete"
+                                    aria-label={`Delete ${user.name || user._id}`}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-400 text-right">Read only</div>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-          <PaginationControls
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-            totalItems={filteredCount}
-            pageSize={pageSize}
-            label="applicants"
-          />
+              <PaginationControls
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                totalItems={filteredCount}
+                pageSize={pageSize}
+                label="applicants"
+              />
+            </>
+          )}
         </div>
       </div>
 

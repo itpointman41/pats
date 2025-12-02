@@ -155,7 +155,7 @@ export default function TransmittalManagementPage() {
     </div>
   );
 
-  if (authLoading || loading || permsLoading) {
+  if (authLoading || permsLoading) {
     return (
       <div className="min-h-screen bg-[var(--surface-muted)] flex items-center justify-center">
         <div className="text-[var(--color-text-muted)]">Loading...</div>
@@ -206,23 +206,24 @@ export default function TransmittalManagementPage() {
             ) : null}
           />
 
-          {/* Error Message */}
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
             </div>
           )}
-
-          {/* Transmittals Tabs (Pending / FTW - For Encode) */}
-          <TransmittalTabs
-            transmittals={filteredTransmittals}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            pageSize={pageSize}
-            onFTW={handleFTWUpdate}
-            canManage={canManageTransmittals}
-            onRefresh={loadTransmittals}
-          />
+          {loading ? (
+            <div className="text-sm text-[var(--color-text-muted)]">Loading transmittals…</div>
+          ) : (
+            <TransmittalTabs
+              transmittals={filteredTransmittals}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              pageSize={pageSize}
+              onFTW={handleFTWUpdate}
+              canManage={canManageTransmittals}
+              onRefresh={loadTransmittals}
+            />
+          )}
         </div>
       </div>
 

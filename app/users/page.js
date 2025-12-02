@@ -137,7 +137,7 @@ const UsersManagementPage = () => {
     </div>
   );
 
-  if (authLoading || loading || permsLoading) {
+  if (authLoading || permsLoading) {
     return (
       <div className="min-h-screen bg-[var(--surface-muted)] flex items-center justify-center">
         <div className="text-[var(--color-text-muted)]">Loading...</div>
@@ -195,117 +195,120 @@ const UsersManagementPage = () => {
             </div>
           )}
 
-          {/* Users Table */}
-          <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-300 bg-gray-50">
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Role</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Last Login</th>
-                    <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {paginatedUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="px-3 py-2.5 text-center text-gray-500 text-xs">No users found</td>
+          {loading ? (
+            <div className="text-sm text-[var(--color-text-muted)]">Loading users…</div>
+          ) : (
+            <div className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-300 bg-gray-50">
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Role</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Last Login</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                     </tr>
-                  ) : (
-                    paginatedUsers.map((user, idx) => (
-                      <tr key={user._id} className={`hover:bg-green-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                        <td className="px-3 py-2.5 align-top">
-                          <div className="flex items-center">
-                            {user.profilePicture ? (
-                              <img
-                                className="h-8 w-8 rounded-full mr-2"
-                                src={user.profilePicture}
-                                alt={`${user.firstName} ${user.lastName}`}
-                              />
-                            ) : (
-                              <div className="h-8 w-8 rounded-full bg-[#0d8c40] flex items-center justify-center text-white font-medium text-xs mr-2">
-                                {user.firstName ? user.firstName.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            <div>
-                              <div className="text-xs font-semibold text-gray-900 leading-tight">
-                                {user.firstName || user.lastName 
-                                  ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
-                                  : user.username}
-                              </div>
-                              <div className="text-xs text-gray-500 leading-tight">{user.username}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <div className="text-xs text-gray-900 leading-tight">{user.email || "—"}</div>
-                          <div className="text-xs text-gray-500 leading-tight">{user.phoneNumber || "—"}</div>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(user.role)}`}>
-                            {user.role.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            user.status === 'active' 
-                              ? 'bg-green-100 text-green-800'
-                              : user.status === 'inactive'
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.status ? user.status.toUpperCase() : 'ACTIVE'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          <span className="text-gray-700 text-xs leading-tight">
-                            {user.lastLogin 
-                              ? new Date(user.lastLogin).toLocaleString() 
-                              : "Never"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 align-top">
-                          {canManageUsers ? (
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => handleEdit(user)}
-                                className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors"
-                                title="Edit"
-                                aria-label={`Edit ${user.username || user._id}`}
-                              >
-                                <Edit size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(user._id)}
-                                className={`p-1.5 rounded-md hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors ${currentUser?.userId === user._id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Delete"
-                                aria-label={`Delete ${user.username || user._id}`}
-                                disabled={currentUser?.userId === user._id}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-400 text-right">Read only</div>
-                          )}
-                        </td>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {paginatedUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="px-3 py-2.5 text-center text-gray-500 text-xs">No users found</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      paginatedUsers.map((user, idx) => (
+                        <tr key={user._id} className={`hover:bg-green-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                          <td className="px-3 py-2.5 align-top">
+                            <div className="flex items-center">
+                              {user.profilePicture ? (
+                                <img
+                                  className="h-8 w-8 rounded-full mr-2"
+                                  src={user.profilePicture}
+                                  alt={`${user.firstName} ${user.lastName}`}
+                                />
+                              ) : (
+                                <div className="h-8 w-8 rounded-full bg-[#0d8c40] flex items-center justify-center text-white font-medium text-xs mr-2">
+                                  {user.firstName ? user.firstName.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <div className="text-xs font-semibold text-gray-900 leading-tight">
+                                  {user.firstName || user.lastName 
+                                    ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+                                    : user.username}
+                                </div>
+                                <div className="text-xs text-gray-500 leading-tight">{user.username}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            <div className="text-xs text-gray-900 leading-tight">{user.email || "—"}</div>
+                            <div className="text-xs text-gray-500 leading-tight">{user.phoneNumber || "—"}</div>
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(user.role)}`}>
+                              {user.role.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              user.status === 'active' 
+                                ? 'bg-green-100 text-green-800'
+                                : user.status === 'inactive'
+                                ? 'bg-gray-100 text-gray-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {user.status ? user.status.toUpperCase() : 'ACTIVE'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            <span className="text-gray-700 text-xs leading-tight">
+                              {user.lastLogin 
+                                ? new Date(user.lastLogin).toLocaleString() 
+                                : "Never"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            {canManageUsers ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleEdit(user)}
+                                  className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors"
+                                  title="Edit"
+                                  aria-label={`Edit ${user.username || user._id}`}
+                                >
+                                  <Edit size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(user._id)}
+                                  className={`p-1.5 rounded-md hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors ${currentUser?.userId === user._id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  title="Delete"
+                                  aria-label={`Delete ${user.username || user._id}`}
+                                  disabled={currentUser?.userId === user._id}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-gray-400 text-right">Read only</div>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationControls
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                totalItems={filteredCount}
+                pageSize={pageSize}
+                label="users"
+              />
             </div>
-            <PaginationControls
-              currentPage={currentPage}
-              onPageChange={setCurrentPage}
-              totalItems={filteredCount}
-              pageSize={pageSize}
-              label="users"
-            />
-          </div>
+          )}
         </div>
       </div>
 
