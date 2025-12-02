@@ -39,14 +39,24 @@ export default function LoginPage() {
         credentials: 'include'
       });
 
-      const data = await response.json();
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
 
-      if (response.ok) {
-        router.push("/dashboard");
+        if (response.ok) {
+          router.push("/dashboard");
+        } else {
+          setError(data.error || "Login failed");
+        }
       } else {
-        setError(data.error || "Login failed");
+        // Handle non-JSON responses (like HTML error pages)
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        setError(`Server error (${response.status}). Please try again or contact support.`);
       }
     } catch (err) {
+      console.error('Login request error:', err);
       setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);

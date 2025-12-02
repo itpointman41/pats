@@ -54,6 +54,23 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Login error:', error);
+    
+    // Check if it's a MongoDB connection error
+    if (error.message && error.message.includes('MONGODB_URI')) {
+      return res.status(500).json({ 
+        error: 'Database configuration error. Please contact the administrator.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
+    // Check if it's a database connection error
+    if (error.message && error.message.includes('Database connection failed')) {
+      return res.status(500).json({ 
+        error: 'Unable to connect to database. Please contact the administrator.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
     res.status(500).json({ error: 'Internal server error' });
   }
 }
